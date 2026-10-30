@@ -13,6 +13,16 @@ internal val PlayerScreenRuntime.addonSubtitleFetchKey: String?
         videoId = activeVideoId,
     )
 
+// True while the automatic addon subtitle fetch for this item hasn't started or finished.
+private val PlayerScreenRuntime.addonSubtitlesPending: Boolean
+    get() {
+        if (isLoadingAddonSubtitles) return true
+        val fetchKey = addonSubtitleFetchKey.takeUnless {
+            activeSourceUrl.startsWith("file:") && externalSubtitles.isNotEmpty()
+        }
+        return fetchKey != null && autoFetchedAddonSubtitlesForKey != fetchKey
+    }
+
 internal val PlayerScreenRuntime.visibleAddonSubtitles: List<AddonSubtitle>
     get() {
         val filtered = filterAddonSubtitlesForSettings(
@@ -216,7 +226,16 @@ private fun PlayerScreenRuntime.tryAutoSelectPreferredSubtitleFromAvailableTrack
             SubtitleLanguageMatching.matchesLanguageCode(currentSelectedLang, primaryTarget)
         val hasBetterAddonMatch = !isPrimarySatisfied && primaryTarget != null &&
             addonSubtitles.any { SubtitleLanguageMatching.matchesLanguageCode(it.language, primaryTarget) }
-        if (!hasBetterAddonMatch) return
+        val selectedPictureTrack = subtitleTracks
+            .firstOrNull { it.index == selectedSubtitleIndex }
+            ?.takeIf { selectedAddonSubtitle == null && !it.isForced && isPictureSubtitleTrack(it) }
+        val hasTextUpgrade = isPrimarySatisfied && selectedPictureTrack != null && primaryTarget != null &&
+            findTextAddonUpgradeForPictureSubtitle(
+                addonSubtitles = addonSubtitles,
+                target = primaryTarget,
+                useForcedSubtitles = subtitleStyle.useForcedSubtitles,
+            ) != null
+        if (!hasBetterAddonMatch && !hasTextUpgrade) return
     }
 
     val selectedAudioTrack = audioTracks.firstOrNull { track -> track.index == selectedAudioIndex }
@@ -273,7 +292,28 @@ private fun PlayerScreenRuntime.tryAutoSelectPreferredSubtitleFromAvailableTrack
                 return
             }
         }
-        preferredSubtitleSelectionApplied = true
+        // A picture match (PGS) gives way to a text addon in the same language. While addons are
+        // still loading, show the picture track but leave the choice open so they can replace it.
+        var keepSelectionOpen = false
+        if (selectionPlan.mode == SubtitleAutoSelectionMode.NORMAL_ONLY && isPictureSubtitleTrack(matchedTrack)) {
+            val textAddon = findTextAddonUpgradeForPictureSubtitle(
+                addonSubtitles = addonSubtitles,
+                target = selectionPlan.targets.getOrNull(matchedTargetPosition) ?: selectionPlan.targets.first(),
+                useForcedSubtitles = subtitleStyle.useForcedSubtitles,
+            )
+            if (textAddon != null) {
+                preferredSubtitleSelectionApplied = true
+                selectedAddonSubtitleId = textAddon.selectionKey
+                selectedSubtitleIndex = -1
+                useCustomSubtitles = true
+                if (!maybeAutoSyncPreferredSubtitleAtStart(textAddon)) { // AutoSync hook
+                    playerController?.setSubtitleUri(textAddon.url)
+                }
+                return
+            }
+            keepSelectionOpen = addonSubtitlesPending
+        }
+        preferredSubtitleSelectionApplied = !keepSelectionOpen
         if (selectedSubtitleIndex != internalIndex || selectedAddonSubtitleId != null) {
             if (useCustomSubtitles) {
                 playerController?.clearExternalSubtitleAndSelect(internalIndex)

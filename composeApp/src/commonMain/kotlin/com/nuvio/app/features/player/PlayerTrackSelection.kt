@@ -181,13 +181,17 @@ internal fun findBestInternalSubtitleTrackIndex(
             continue
         }
 
-        val preferredCandidateIndexes = candidateIndexes.filter { index -> !tracks[index].isForced }
+        val unforcedCandidateIndexes = candidateIndexes.filter { index -> !tracks[index].isForced }
             .takeIf { it.isNotEmpty() }
             ?: if (normalOnly) {
                 continue
             } else {
                 candidateIndexes
             }
+        // Text subtitles beat picture ones (PGS, VobSub) in the same language; pictures stay the fallback.
+        val preferredCandidateIndexes = unforcedCandidateIndexes
+            .filterNot { index -> isPictureSubtitleTrack(tracks[index]) }
+            .ifEmpty { unforcedCandidateIndexes }
 
         if (preferredCandidateIndexes.size == 1) {
             if (normalizedTarget == "pt" || normalizedTarget == "es") {
@@ -215,6 +219,23 @@ internal fun findBestInternalSubtitleTrackIndex(
         return preferredCandidateIndexes.first()
     }
     return -1
+}
+
+private val PictureSubtitleCodecPattern =
+    Regex("""\b(pgs|hdmv_pgs_subtitle|hdmv|dvd_subtitle|dvb_subtitle|dvb|vobsub)\b""", RegexOption.IGNORE_CASE)
+
+// Players append the codec to the label ("English (PGS)" on iOS, "English (hdmv_pgs_subtitle)" on Linux).
+internal fun isPictureSubtitleTrack(track: SubtitleTrack): Boolean =
+    PictureSubtitleCodecPattern.containsMatchIn(track.label)
+
+// A text addon subtitle in [target] that should replace an embedded picture subtitle, if any.
+internal fun findTextAddonUpgradeForPictureSubtitle(
+    addonSubtitles: List<AddonSubtitle>,
+    target: String,
+    useForcedSubtitles: Boolean,
+): AddonSubtitle? = addonSubtitles.firstOrNull { subtitle ->
+    (!useForcedSubtitles || !addonSubtitleIsForced(subtitle)) &&
+        SubtitleLanguageMatching.matchesLanguageCode(subtitle.language, target)
 }
 
 internal fun findBestForcedSubtitleTrackIndex(
