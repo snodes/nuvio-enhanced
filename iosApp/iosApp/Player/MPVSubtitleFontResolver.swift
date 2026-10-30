@@ -114,6 +114,15 @@ enum MPVSubtitleFontResolver {
 
     private(set) static var registeredFamilies: [String] = []
 
+    // Match SubtitleFontFiles.ios.kt. Let libass/FreeType load imported files
+    // directly as well as making them visible to the CoreText font provider.
+    static var customFontsDirectory: URL? {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first?.appendingPathComponent("subtitle_fonts", isDirectory: true)
+    }
+
+    /// Return the full face name, not just its family: timesbd.ttf must select
+    /// Times New Roman Bold even when the separate Bold switch is off.
     static func registerCustomFont(atPath path: String) -> String? {
         let url = URL(fileURLWithPath: path) as CFURL
         var error: Unmanaged<CFError>?
@@ -123,7 +132,7 @@ enum MPVSubtitleFontResolver {
         }
         let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url) as? [CTFontDescriptor]
         return descriptors?.lazy
-            .compactMap { CTFontDescriptorCopyAttribute($0, kCTFontFamilyNameAttribute) as? String }
+            .map { CTFontCopyFullName(CTFontCreateWithFontDescriptor($0, 12.0, nil)) as String }
             .first
     }
 
@@ -310,7 +319,7 @@ final class MPVSubtitleFontController {
     private var profileLocked = false
     private var currentSubtitleTrackID: Int64?
     private var customFontPath: String?
-    private var customFamily: String?
+    private var customFontName: String?
 
     private let minimumEvidenceCues = 3
     private let maximumEvidenceCues = 5
@@ -322,6 +331,10 @@ final class MPVSubtitleFontController {
     }
 
     func applySetupOptions(_ setOption: (String, String) -> Void) {
+        if let directory = MPVSubtitleFontResolver.customFontsDirectory {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            setOption("sub-fonts-dir", directory.path)
+        }
         for line in MPVSubtitleFontResolver.registerBundledFonts() {
             InAppLogBridge.shared.info(tag: "MPV/SubFont", message: line)
         }
@@ -358,8 +371,8 @@ final class MPVSubtitleFontController {
     func setCustomFontPath(_ path: String?) {
         guard path != customFontPath else { return }
         customFontPath = path
-        customFamily = path.flatMap { MPVSubtitleFontResolver.registerCustomFont(atPath: $0) }
-        if let path, customFamily == nil {
+        customFontName = path.flatMap { MPVSubtitleFontResolver.registerCustomFont(atPath: $0) }
+        if let path, customFontName == nil {
             InAppLogBridge.shared.warn(
                 tag: "MPV/SubFont",
                 message: "custom font could not be registered: \((path as NSString).lastPathComponent)"
@@ -370,8 +383,8 @@ final class MPVSubtitleFontController {
 
     private func desiredFamily() -> String? {
         let script = scriptFromText ?? scriptFromLanguage
-        if let customFamily, script == nil || script == .latinExtended {
-            return customFamily
+        if let customFontName, script == nil || script == .latinExtended {
+            return customFontName
         }
         return script.flatMap { MPVSubtitleFontResolver.family(for: $0) }
             ?? MPVSubtitleFontResolver.baselineFamily

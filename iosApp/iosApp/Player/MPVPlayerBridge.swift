@@ -1603,7 +1603,8 @@ final class MPVPlayerViewController: UIViewController {
             : Double(outlineSize)
 
         subtitleFonts.reapplyFont()
-        setStringProperty("sub-ass-override", "no")
+        // iOS always applies the saved subtitle style; there is no original-ASS toggle.
+        setStringProperty("sub-ass-override", "force")
         setStringProperty("sub-color", textColor)
         setStringProperty("sub-back-color", effectiveBackColor)
         setStringProperty("sub-outline-color", effectiveOutlineColor)

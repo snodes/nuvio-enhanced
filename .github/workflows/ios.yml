@@ -82,6 +82,9 @@ jobs:
             echo "kotlin.native.disableCompilerDaemon=true"
           } >> "${gradle_user_home}/gradle.properties"
 
+      - name: Check imported subtitle font faces
+        run: python3 iosApp/tests/test-subtitle-font.py
+
       - name: Prepare iOS dependencies
         run: ./scripts/prepare-ios-dependencies.sh
 
