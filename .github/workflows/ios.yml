@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: ios-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -31,9 +31,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Run PlayerTrackSelectionTest
         run: |
+          # Linux only tests shared selection logic; do not require the Apple engine.
           touch local.properties
           ./gradlew :composeApp:testAndroidHostTest --tests 'com.nuvio.app.features.player.PlayerTrackSelectionTest' \
-            -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=full --stacktrace
+            -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore --stacktrace
 
   ios:
     name: Build unsigned Release IPA
