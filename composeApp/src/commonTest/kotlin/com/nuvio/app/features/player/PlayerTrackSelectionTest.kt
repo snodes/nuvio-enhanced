@@ -339,6 +339,74 @@ class PlayerTrackSelectionTest {
         assertEquals(listOf("french", "english"), visibleSubtitles.map { it.id })
     }
 
+    @Test
+    fun textSubtitleBeatsEarlierPictureSubtitleInSameLanguage() {
+        val pgsThenSrt = listOf(
+            subtitleTrack(index = 0, language = "en", label = "English (PGS)", isForced = false),
+            subtitleTrack(index = 1, language = "en", label = "English (SRT)", isForced = false),
+        )
+        val pgsThenAss = listOf(
+            subtitleTrack(index = 0, language = "eng", label = "English (hdmv_pgs_subtitle)", isForced = false),
+            subtitleTrack(index = 1, language = "eng", label = "English (ass)", isForced = false),
+        )
+
+        for (tracks in listOf(pgsThenSrt, pgsThenAss)) {
+            val selectedIndex = findPreferredSubtitleTrackIndex(
+                tracks = tracks,
+                targets = listOf("en"),
+                mode = SubtitleAutoSelectionMode.NORMAL_ONLY,
+            )
+            assertEquals(1, selectedIndex)
+        }
+    }
+
+    @Test
+    fun pictureSubtitleIsKeptWhenNoTextSubtitleMatches() {
+        val tracks = listOf(
+            subtitleTrack(index = 0, language = "fr", label = "French (SRT)", isForced = false),
+            subtitleTrack(index = 1, language = "en", label = "English (PGS)", isForced = false),
+        )
+
+        val selectedIndex = findPreferredSubtitleTrackIndex(
+            tracks = tracks,
+            targets = listOf("en", "fr"),
+            mode = SubtitleAutoSelectionMode.NORMAL_ONLY,
+        )
+
+        assertEquals(1, selectedIndex)
+    }
+
+    @Test
+    fun pictureSubtitleCodecsAreDetectedFromLabel() {
+        val picture = listOf("English (PGS)", "English (hdmv_pgs_subtitle)", "English (dvd_subtitle)", "English (DVB)")
+        val text = listOf("English (SRT)", "English (subrip)", "English (SSA)", "English", "Pages of Glory")
+
+        picture.forEach { label ->
+            assertEquals(true, isPictureSubtitleTrack(subtitleTrack(0, "en", label, isForced = false)), label)
+        }
+        text.forEach { label ->
+            assertEquals(false, isPictureSubtitleTrack(subtitleTrack(0, "en", label, isForced = false)), label)
+        }
+    }
+
+    @Test
+    fun textAddonUpgradeMatchesTargetLanguageAndSkipsForcedWhenForcedIsOn() {
+        val subtitles = listOf(
+            addonSubtitle(id = "french", language = "fr"),
+            addonSubtitle(id = "english-forced", language = "en", url = "https://example.com/en.forced.srt"),
+            addonSubtitle(id = "english", language = "eng"),
+        )
+
+        val upgrade = findTextAddonUpgradeForPictureSubtitle(
+            addonSubtitles = subtitles,
+            target = "en",
+            useForcedSubtitles = true,
+        )
+
+        assertEquals("english", upgrade?.id)
+        assertNull(findTextAddonUpgradeForPictureSubtitle(subtitles.take(1), "en", useForcedSubtitles = false))
+    }
+
     private fun audioTrack(language: String?) = AudioTrack(
         index = 0,
         id = "audio-0",

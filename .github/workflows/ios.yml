@@ -1,0 +1,90 @@
+# Private build of Nuvio Enhanced (snodes/nuvio-enhanced).
+# Every push builds an unsigned Release IPA (artifact Nuvio-unsigned-ipa) that `nuvio-phone`
+# publishes to a private LiveContainer source, and runs the shared
+# track-selection tests on Linux. Runtime keys come from the NUVIO_LOCAL_PROPERTIES_BASE64 secret.
+name: iOS
+
+on:
+  push:
+    branches: [text-subs-first]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Shared player tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Run PlayerTrackSelectionTest
+        run: |
+          touch local.properties
+          ./gradlew :composeApp:testAndroidHostTest --tests 'com.nuvio.app.features.player.PlayerTrackSelectionTest' \
+            -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=full --stacktrace
+
+  ios:
+    name: Build unsigned Release IPA
+    runs-on: xcode-27
+    timeout-minutes: 180
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+      GRADLE_OPTS: -Dfile.encoding=UTF-8
+      IOS_CONFIGURATION: Release
+      KOTLIN_DAEMON_JVMARGS: -Xmx1024M
+      NUVIO_GRADLE_JVMARGS: -Xmx2048M -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=768M -XX:+UseG1GC
+      NUVIO_KOTLIN_NATIVE_JVMARGS: -Xmx9216M -XX:+UseG1GC
+      RELEASE_PROPERTIES_BASE64: ${{ secrets.NUVIO_LOCAL_PROPERTIES_BASE64 }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/cache@v5
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Configure runtime properties
+        run: printf '%s' "${RELEASE_PROPERTIES_BASE64}" | base64 --decode > local.properties
+
+      - name: Constrain Gradle memory for the hosted runner
+        run: |
+          gradle_user_home="${GRADLE_USER_HOME:-${HOME}/.gradle}"
+          mkdir -p "${gradle_user_home}"
+          {
+            echo "org.gradle.jvmargs=${NUVIO_GRADLE_JVMARGS}"
+            echo "kotlin.daemon.jvmargs=${KOTLIN_DAEMON_JVMARGS}"
+            echo "kotlin.native.jvmArgs=${NUVIO_KOTLIN_NATIVE_JVMARGS}"
+            echo "org.gradle.parallel=false"
+            echo "org.gradle.workers.max=1"
+            echo "kotlin.native.disableCompilerDaemon=true"
+          } >> "${gradle_user_home}/gradle.properties"
+
+      - name: Prepare iOS dependencies
+        run: ./scripts/prepare-ios-dependencies.sh
+
+      - name: Build unsigned IPA
+        run: ./scripts/build-ios-ipa.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Nuvio-unsigned-ipa
+          path: build/ios-ipa/*-release.ipa
+          if-no-files-found: error
+          retention-days: 30
