@@ -541,6 +541,13 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${libs.versions.kotlinx.coroutines.get()}")
             implementation("io.ktor:ktor-client-mock:${libs.versions.ktor.get()}")
         }
+
+        // Keep focused player CI independent of unrelated upstream UI/download test drift.
+        if (providers.gradleProperty("nuvio.playerSelectionTestsOnly").orNull == "true") {
+            listOf("commonTest", "androidHostTest").forEach { sourceSetName ->
+                getByName(sourceSetName).kotlin.include("**/PlayerTrackSelectionTest.kt")
+            }
+        }
     }
 }
 
