@@ -123,13 +123,12 @@ enum MPVSubtitleFontResolver {
 
     /// Return the full face name, not just its family: timesbd.ttf must select
     /// Times New Roman Bold even when the separate Bold switch is off.
+    /// Registration is best effort: iOS refuses a file whose face it already ships
+    /// ("GSFont: TimesNewRomanPS-BoldMT already exists"), but libass still loads the
+    /// file from sub-fonts-dir, so the name is read from the file either way.
     static func registerCustomFont(atPath path: String) -> String? {
         let url = URL(fileURLWithPath: path) as CFURL
-        var error: Unmanaged<CFError>?
-        if !CTFontManagerRegisterFontsForURL(url, .process, &error) {
-            let code = error.map { CFErrorGetCode($0.takeRetainedValue()) } ?? 0
-            guard code == CTFontManagerError.alreadyRegistered.rawValue else { return nil }
-        }
+        _ = CTFontManagerRegisterFontsForURL(url, .process, nil)
         let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url) as? [CTFontDescriptor]
         return descriptors?.lazy
             .map { CTFontCopyFullName(CTFontCreateWithFontDescriptor($0, 12.0, nil)) as String }
