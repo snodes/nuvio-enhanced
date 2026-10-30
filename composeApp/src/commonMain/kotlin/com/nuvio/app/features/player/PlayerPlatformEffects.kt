@@ -1,7 +1,6 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,23 +59,17 @@ expect fun ManagePlayerPictureInPicture(
 @Composable
 expect fun rememberIsInPictureInPicture(): Boolean
 
+// Gesture controller for the full-screen player. Brightness swipes last only for this
+// session: playback starts at the current system brightness, and the platform controller
+// restores the pre-player brightness when the player leaves.
 @Composable
-fun rememberPlayerGestureController(restoreBrightness: Boolean): PlayerGestureController? {
+fun rememberPlayerGestureController(): PlayerGestureController? {
     val controller = rememberPlatformPlayerGestureController() ?: return null
-    DisposableEffect(controller, restoreBrightness) {
-        if (restoreBrightness) {
-            PlayerSettingsStorage.loadPlaybackBrightness()
-                ?.takeIf { it in 0f..1f }
-                ?.let(controller::setBrightness)
-        }
-        onDispose {}
-    }
     return remember(controller) {
         object : PlayerGestureController by controller {
             override fun setBrightness(level: Float): Float? {
                 if (!level.isFinite()) return null
                 return controller.setBrightness(level.coerceIn(0f, 1f))
-                    ?.also(PlayerSettingsStorage::savePlaybackBrightness)
             }
         }
     }

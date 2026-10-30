@@ -18,7 +18,6 @@ import platform.Foundation.NSUserDefaults
 
 actual object PlayerSettingsStorage {
     private const val pendingExternalPlaybackKey = "pending_external_playback"
-    private const val playbackBrightnessKey = "playback_brightness"
     private const val useLegacyPlayerLayoutKey = "use_legacy_player_layout"
     private const val showLoadingOverlayKey = "show_loading_overlay"
     private const val showPlayerLoadingStatusKey = "show_player_loading_status"
@@ -198,16 +197,6 @@ actual object PlayerSettingsStorage {
         } else {
             NSUserDefaults.standardUserDefaults.setObject(value, forKey = pendingExternalPlaybackKey)
         }
-    }
-
-    actual fun loadPlaybackBrightness(): Float? {
-        val defaults = NSUserDefaults.standardUserDefaults
-        val key = ProfileScopedKey.of(playbackBrightnessKey)
-        return if (defaults.objectForKey(key) != null) defaults.floatForKey(key) else null
-    }
-
-    actual fun savePlaybackBrightness(level: Float) {
-        NSUserDefaults.standardUserDefaults.setFloat(level, forKey = ProfileScopedKey.of(playbackBrightnessKey))
     }
 
     private fun loadBoolean(keyBase: String): Boolean? {

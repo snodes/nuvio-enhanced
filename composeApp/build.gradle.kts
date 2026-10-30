@@ -545,7 +545,7 @@ kotlin {
         // Keep focused player CI independent of unrelated upstream UI/download test drift.
         if (providers.gradleProperty("nuvio.playerSelectionTestsOnly").orNull == "true") {
             getByName("commonTest").kotlin.setSrcDirs(listOf("build/player-selection-tests/kotlin"))
-            getByName("androidHostTest").kotlin.setSrcDirs(emptyList<String>())
+            getByName("androidHostTest").kotlin.setSrcDirs(listOf("build/player-host-tests/kotlin"))
         }
     }
 }

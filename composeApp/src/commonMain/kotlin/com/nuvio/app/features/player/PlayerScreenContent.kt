@@ -98,9 +98,7 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         runtime.gestureController = if (runtime.isMiniPresentation) {
             null
         } else {
-            rememberPlayerGestureController(
-                restoreBrightness = playerSettingsUiState.touchGesturesEnabled,
-            )
+            rememberPlayerGestureController()
         }
         runtime.playerSettingsUiState = playerSettingsUiState
         runtime.p2pSettingsUiState = p2pSettingsUiState

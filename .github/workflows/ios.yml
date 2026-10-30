@@ -1,7 +1,8 @@
 # Private build of Nuvio Enhanced (snodes/nuvio-enhanced).
 # Every push builds an unsigned Release IPA (artifact Nuvio-unsigned-ipa) that `nuvio-phone`
-# publishes to a private LiveContainer source, and runs the shared
-# track-selection tests on Linux. Runtime keys come from the NUVIO_LOCAL_PROPERTIES_BASE64 secret.
+# publishes to a private LiveContainer source, and runs the focused shared
+# player tests (track selection, brightness) on Linux. Runtime keys come from the
+# NUVIO_LOCAL_PROPERTIES_BASE64 secret.
 name: iOS
 
 
@@ -29,14 +30,17 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v6
-      - name: Run PlayerTrackSelectionTest
+      - name: Run focused player tests
         run: |
-          # Linux only tests shared selection logic; do not require the Apple engine.
+          # Linux only tests shared player logic; do not require the Apple engine.
           touch local.properties
           focused=composeApp/build/player-selection-tests/kotlin/com/nuvio/app/features/player
-          mkdir -p "$focused"
+          host=composeApp/build/player-host-tests/kotlin/com/nuvio/app/features/player
+          mkdir -p "$focused" "$host"
           cp composeApp/src/commonTest/kotlin/com/nuvio/app/features/player/PlayerTrackSelectionTest.kt "$focused/"
+          cp composeApp/src/androidHostTest/kotlin/com/nuvio/app/features/player/PlayerBrightnessTest.kt "$host/"
           ./gradlew :composeApp:testAndroidHostTest --tests 'com.nuvio.app.features.player.PlayerTrackSelectionTest' \
+            --tests 'com.nuvio.app.features.player.PlayerBrightnessTest' \
             -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore \
             -Pnuvio.playerSelectionTestsOnly=true --stacktrace
 

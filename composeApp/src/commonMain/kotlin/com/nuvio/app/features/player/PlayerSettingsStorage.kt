@@ -5,8 +5,6 @@ import kotlinx.serialization.json.JsonObject
 internal expect object PlayerSettingsStorage {
     fun loadPendingExternalPlayback(): String?
     fun savePendingExternalPlayback(value: String?)
-    fun loadPlaybackBrightness(): Float?
-    fun savePlaybackBrightness(level: Float)
     fun loadUseLegacyPlayerLayout(): Boolean?
     fun saveUseLegacyPlayerLayout(enabled: Boolean)
     fun loadShowLoadingOverlay(): Boolean?
