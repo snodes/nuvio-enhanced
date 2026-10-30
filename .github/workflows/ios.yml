@@ -1,8 +1,8 @@
 # Private build of Nuvio Enhanced (snodes/nuvio-enhanced).
 # Every push builds an unsigned Release IPA (artifact Nuvio-unsigned-ipa) that `nuvio-phone`
 # publishes to a private LiveContainer source, and runs the focused shared
-# player tests (track selection, brightness) on Linux. Runtime keys come from the
-# NUVIO_LOCAL_PROPERTIES_BASE64 secret.
+# player tests (track selection, brightness) on Linux plus a simulator subtitle render.
+# Runtime keys come from the NUVIO_LOCAL_PROPERTIES_BASE64 secret.
 name: iOS
 
 
@@ -43,6 +43,28 @@ jobs:
             --tests 'com.nuvio.app.features.player.PlayerBrightnessTest' \
             -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore \
             -Pnuvio.playerSelectionTestsOnly=true --stacktrace
+
+  # Renders the phone's saved subtitle style with an imported Times New Roman Bold through
+  # the app's libmpv/libass on an iOS simulator; the PNG is the proof artifact.
+  subtitle-render:
+    name: Simulator subtitle render
+    runs-on: xcode-27
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check out MPVKit
+        run: git submodule update --init --depth 1 MPVKit
+      - name: Render subtitle on the simulator
+        run: iosApp/tests/SubtitleRender/run.sh build/subtitle-render
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ios-subtitle-render
+          path: build/subtitle-render/
+          if-no-files-found: warn
+          retention-days: 30
 
   ios:
     name: Build unsigned Release IPA
