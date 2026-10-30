@@ -33,6 +33,9 @@ jobs:
         run: |
           # Linux only tests shared selection logic; do not require the Apple engine.
           touch local.properties
+          focused=composeApp/build/player-selection-tests/kotlin/com/nuvio/app/features/player
+          mkdir -p "$focused"
+          cp composeApp/src/commonTest/kotlin/com/nuvio/app/features/player/PlayerTrackSelectionTest.kt "$focused/"
           ./gradlew :composeApp:testAndroidHostTest --tests 'com.nuvio.app.features.player.PlayerTrackSelectionTest' \
             -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore \
             -Pnuvio.playerSelectionTestsOnly=true --stacktrace
