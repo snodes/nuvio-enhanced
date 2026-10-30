@@ -17,6 +17,11 @@ lines = [l for l in source.splitlines() if l not in ('import ComposeApp', 'impor
 open(sys.argv[2], 'w').write('\n'.join(lines) + '\n')
 EOF
 
+# Exercise the exact stroke conversion shipped in the bridge, not a test copy.
+sed -n '/^\/\/ MARK: - Subtitle stroke scaling/,$p' \
+    "${root}/iosApp/iosApp/Player/MPVPlayerBridge.swift" \
+    > "${here}/Sources/SubtitleFontResolver/MPVSubtitleStrokes.swift"
+
 udid="$(xcrun simctl list devices available -j | python3 -c '
 import json, sys
 devices = json.load(sys.stdin)["devices"]

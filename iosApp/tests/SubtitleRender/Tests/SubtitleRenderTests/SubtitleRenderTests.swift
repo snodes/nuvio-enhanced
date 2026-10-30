@@ -45,7 +45,7 @@ final class SubtitleRenderTests: XCTestCase {
             subtitle: fixtures.appendingPathComponent("cue.srt"),
             fontsDir: fontsDir,
             family: family,
-            into: &pixels
+            harbor: false, into: &pixels
         )
         try report.joined(separator: "\n").write(
             to: output.appendingPathComponent("ios-subtitle-render.log"), atomically: true, encoding: .utf8
@@ -55,6 +55,21 @@ final class SubtitleRenderTests: XCTestCase {
         XCTAssertTrue(pixels.contains { $0 != 0 }, "mpv rendered an empty frame")
         try writePNG(pixels, to: output.appendingPathComponent("ios-subtitle-render.png"))
 
+        var reference = [UInt8](repeating: 0, count: width * height * 4)
+        let referenceLog = render(
+            video: fixtures.appendingPathComponent("background.mp4"),
+            subtitle: fixtures.appendingPathComponent("cue.srt"),
+            fontsDir: fontsDir, family: "Times New Roman", harbor: true, into: &reference
+        )
+        try writePNG(reference, to: output.appendingPathComponent("harbor-reference.png"))
+        try referenceLog.joined(separator: "\n").write(
+            to: output.appendingPathComponent("harbor-reference.log"), atomically: true, encoding: .utf8
+        )
+        XCTAssertEqual(zip(pixels, reference).filter { $0 != $1 }.count, 0,
+                       "Phone strokes must match Harbor at matching text scale")
+        XCTAssertEqual(MPVSubtitleStrokes(fontSize: 32, outlineSize: 2, shadowOffset: 1.5).outline, 1)
+        XCTAssertEqual(MPVSubtitleStrokes(fontSize: 32, outlineSize: 0, shadowOffset: 0).shadow, 0)
+
         XCTAssertEqual(customName, "Times New Roman Bold")
         XCTAssertTrue(
             report.contains { $0.contains("fontselect") && $0.contains("Times New Roman") && $0.contains("Bold") },
@@ -63,23 +78,29 @@ final class SubtitleRenderTests: XCTestCase {
     }
 
     /// Mirrors MPVPlayerBridge.applySubtitleStyle with PlayerEngine.ios.kt's conversions:
-    /// size 10sp * 3, sub-pos 100 - 20 / 2, shadow 1 * 1.5 with the bridge's shadow colour.
-    private func render(video: URL, subtitle: URL, fontsDir: URL, family: String, into pixels: inout [UInt8]) -> [String] {
+    /// size 10sp * 3, sub-pos 100 - 20 / 2, and the shipped bridge stroke conversion.
+    private func render(video: URL, subtitle: URL, fontsDir: URL, family: String, harbor: Bool, into pixels: inout [UInt8]) -> [String] {
         let ctx = mpv_create()!
         defer { mpv_terminate_destroy(ctx) }
+        let strokes = MPVSubtitleStrokes(fontSize: 30, outlineSize: 2, shadowOffset: 1.5)
+        // Harbor uses font 32, border 1, shadow 1.4. At the phone's font 30,
+        // normalize all three dimensions by 30/32 (same frame, no image resizing).
+        let scale = 30.0 / 32.0
         let options: [(String, String)] = [
             ("vo", "libmpv"), ("ao", "null"), ("hwdec", "no"), ("pause", "yes"), ("keep-open", "yes"),
             ("sub-files", subtitle.path),
             ("sub-fonts-dir", fontsDir.path), ("sub-font", family),
             ("sub-ass-override", "force"),
             ("sub-color", "#FFFFFFFF"),
-            ("sub-back-color", "#B3000000"),
+            ("sub-back-color", "#FF000000"),
             ("sub-outline-color", "#FF000000"),
             ("sub-border-style", "outline-and-shadow"),
-            ("sub-shadow-offset", "1.5"),
+            ("sub-shadow-offset", String(harbor ? 1.4 * scale : strokes.shadow)),
             ("sub-bold", "yes"),
-            ("sub-outline-size", "2"),
+            ("sub-outline-size", String(harbor ? 1 * scale : strokes.outline)),
             ("sub-font-size", "30"),
+            ("sub-blur", "0"), ("sub-scale-by-window", "yes"), ("sub-use-margins", "no"),
+            ("sub-scale", "1"), ("sub-spacing", "0"), ("sub-ass-force-margins", "no"),
             ("sub-pos", "90"),
         ]
         for (name, value) in options {
@@ -106,7 +127,7 @@ final class SubtitleRenderTests: XCTestCase {
             }
         }
 
-        var log: [String] = []
+        var log = options.map { "\($0.0)=\($0.1)" }
         var restarted = false
         let deadline = Date().addingTimeInterval(60)
         while Date() < deadline {

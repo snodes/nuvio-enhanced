@@ -1596,11 +1596,12 @@ final class MPVPlayerViewController: UIViewController {
 
         let effectiveOutlineColor = hasBackground ? backgroundColor : outlineColor
         let hasShadow = shadowOffset > 0
-        let shadowColor = "#B3000000"
+        let shadowColor = "#FF000000"
+        let strokes = MPVSubtitleStrokes(fontSize: fontSize, outlineSize: outlineSize, shadowOffset: shadowOffset)
         let effectiveBackColor = (hasShadow && !hasBackground) ? shadowColor : backgroundColor
         let effectiveOutlineSize = hasBackground
             ? max(Double(outlineSize), 1.0)
-            : Double(outlineSize)
+            : strokes.outline
 
         subtitleFonts.reapplyFont()
         // iOS always applies the saved subtitle style; there is no original-ASS toggle.
@@ -1609,7 +1610,10 @@ final class MPVPlayerViewController: UIViewController {
         setStringProperty("sub-back-color", effectiveBackColor)
         setStringProperty("sub-outline-color", effectiveOutlineColor)
         setStringProperty("sub-border-style", hasBackground ? "opaque-box" : "outline-and-shadow")
-        setDoubleProperty("sub-shadow-offset", hasBackground ? 0 : Double(shadowOffset))
+        setDoubleProperty("sub-shadow-offset", hasBackground ? 0 : strokes.shadow)
+        setStringProperty("sub-blur", "0")
+        setStringProperty("sub-scale-by-window", "yes")
+        setStringProperty("sub-use-margins", "no")
         setStringProperty("sub-bold", bold ? "yes" : "no")
         setDoubleProperty("sub-outline-size", effectiveOutlineSize)
         setDoubleProperty("sub-font-size", Double(fontSize))
@@ -2585,5 +2589,20 @@ enum NuvioPlayerRegistration {
     static func register() {
         NuvioPlayerBridgeFactory.shared.registerFactory(creator: MPVPlayerBridgeCreator())
         NuvioSeekPreviewRegistry.shared.registerCreator(creator: FFmpegSeekPreviewGeneratorCreator())
+    }
+}
+
+// MARK: - Subtitle stroke scaling
+/// Keep strokes proportional to the phone's sp → mpv font conversion. At size 32,
+/// the saved default outline width 2 and shadow strength 1 match Harbor's 1 / 1.4.
+struct MPVSubtitleStrokes {
+    let outline: Double
+    let shadow: Double
+
+    init(fontSize: Float, outlineSize: Float, shadowOffset: Float) {
+        let scale = Double(fontSize) / 32.0
+        outline = Double(outlineSize) / 2.0 * scale
+        // PlayerEngine passes shadow strength multiplied by 1.5.
+        shadow = Double(shadowOffset) / 1.5 * 1.4 * scale
     }
 }
