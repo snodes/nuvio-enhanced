@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ios-${{ github.ref }}
+  group: ios-text-subs-v2-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
