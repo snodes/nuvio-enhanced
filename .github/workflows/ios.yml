@@ -34,7 +34,8 @@ jobs:
           # Linux only tests shared selection logic; do not require the Apple engine.
           touch local.properties
           ./gradlew :composeApp:testAndroidHostTest --tests 'com.nuvio.app.features.player.PlayerTrackSelectionTest' \
-            -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore --stacktrace
+            -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore \
+            -Pnuvio.playerSelectionTestsOnly=true --stacktrace
 
   ios:
     name: Build unsigned Release IPA
