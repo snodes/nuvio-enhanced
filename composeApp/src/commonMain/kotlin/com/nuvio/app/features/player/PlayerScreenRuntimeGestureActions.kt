@@ -385,6 +385,11 @@ internal fun PlayerScreenRuntime.rememberSurfaceGestureCallbacks(): PlayerSurfac
             revealLockedOverlay()
             return@rememberUpdatedState
         }
+        if (pausedOverlayVisible) {
+            pausedOverlayVisible = false
+            controlsVisible = true
+            return@rememberUpdatedState
+        }
         val centerStart = layoutSize.width * PlayerLeftGestureBoundary
         val centerEnd = layoutSize.width * PlayerRightGestureBoundary
         if (controlsVisible && offset.x in centerStart..centerEnd) {

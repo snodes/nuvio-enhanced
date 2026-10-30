@@ -473,18 +473,18 @@ private fun PlayerScreenRuntime.BindPlayerUiVisibilityEffects() {
         lockedOverlayVisible = false
     }
 
-    LaunchedEffect(
-        playerSettingsUiState.pauseOverlayEnabled,
-        playbackSnapshot.isPlaying,
-        playbackSnapshot.isLoading,
-        playbackSnapshot.durationMs,
-        errorMessage,
-    ) {
+    // Controls/taps are deliberately not keys: dismiss once, until the next pause.
+    val pauseOverlayEligible = playerSettingsUiState.pauseOverlayEnabled &&
+        !playbackSnapshot.isPlaying && !playbackSnapshot.isLoading &&
+        !playbackSnapshot.isEnded && playbackSnapshot.durationMs > 0L && errorMessage == null &&
+        !playerControlsLocked && !folded && !isPanelOpen && !showParentalGuide &&
+        !(activeSkipInterval != null && !skipIntervalDismissed) &&
+        !showNextEpisodeCard && !nextEpisodeAutoPlaySearching && nextEpisodeAutoPlayCountdown == null
+    LaunchedEffect(pauseOverlayEligible) {
         pausedOverlayVisible = false
-        if (!playerSettingsUiState.pauseOverlayEnabled || playbackSnapshot.isPlaying || playbackSnapshot.isLoading || playbackSnapshot.durationMs <= 0L || errorMessage != null) {
-            return@LaunchedEffect
-        }
-        delay(5000)
+        if (!pauseOverlayEligible) return@LaunchedEffect
+        delay(1000)
+        controlsVisible = false
         pausedOverlayVisible = true
     }
 
