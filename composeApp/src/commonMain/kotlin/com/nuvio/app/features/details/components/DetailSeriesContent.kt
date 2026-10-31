@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.listCardArtworkUrl
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
@@ -333,6 +335,7 @@ fun DetailSeriesContent(
                                 EpisodeListCard(
                                     video = episode,
                                     userRating = rememberUserRating(userRatingTarget),
+                                    posterImage = meta.poster,
                                     fallbackImage = meta.background ?: meta.poster,
                                     progressEntry = progressByVideoId[episodeVideoId],
                                     tmdbRating = episode.tmdbRating,
@@ -438,6 +441,7 @@ internal fun DetailSeriesListEpisode(
         EpisodeListCard(
             video = episode,
             userRating = rememberUserRating(userRatingTarget),
+            posterImage = meta.poster,
             fallbackImage = meta.background ?: meta.poster,
             progressEntry = progressByVideoId[episodeVideoId],
             tmdbRating = episode.tmdbRating ?: episode.rating,
@@ -1389,6 +1393,7 @@ private fun EpisodeListCard(
     video: MetaVideo,
     userRating: Int? = null,
     fallbackImage: String?,
+    posterImage: String?,
     progressEntry: WatchProgressEntry?,
     tmdbRating: Double?,
     imdbRating: Double?,
@@ -1450,8 +1455,9 @@ private fun EpisodeListCard(
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(topStart = cornerRadius, bottomStart = cornerRadius)),
             ) {
-                val imageUrl = video.thumbnail ?: fallbackImage
-                val shouldBlurArtwork = blurUnwatchedEpisodes && !isWatched
+                val imageUrl = listCardArtworkUrl(posterImage, video.thumbnail, fallbackImage)
+                val shouldBlurArtwork = blurUnwatchedEpisodes && !isWatched &&
+                    posterImage.isNullOrBlank() && imageUrl == video.thumbnail
                 if (imageUrl != null) {
                     AsyncImage(
                         model = imageUrl,

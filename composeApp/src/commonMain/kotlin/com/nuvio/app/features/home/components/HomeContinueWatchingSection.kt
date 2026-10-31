@@ -1,5 +1,7 @@
 package com.nuvio.app.features.home.components
 
+import com.nuvio.app.core.ui.listCardArtworkUrl
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -912,7 +914,7 @@ private fun ContinueWatchingWideCard(
                 onLongClick = onLongClick,
             ),
     ) {
-        val artworkUrl = item.continueWatchingArtworkUrl(useEpisodeThumbnails)
+        val artworkUrl = listCardArtworkUrl(item.poster, item.background, item.episodeThumbnail, item.imageUrl)
         val shouldBlurArtwork = item.shouldBlurContinueWatchingArtwork(
             blurUnwatchedEpisodes = blurNextUp,
             useEpisodeThumbnails = useEpisodeThumbnails,
