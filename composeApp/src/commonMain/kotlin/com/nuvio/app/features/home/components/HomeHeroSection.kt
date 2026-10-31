@@ -74,6 +74,8 @@ import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
+import coil3.size.Size
+import com.nuvio.app.features.tmdb.originalHeroArtworkUrl
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.build.TrailerPlaybackMode
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
@@ -356,7 +358,7 @@ internal fun HomeHeroSection(
                 neighbours.forEach { item ->
                     listOfNotNull(heroArtworkUrl(item, effectiveArtworkSource), item.logo?.takeIf { it.isNotBlank() })
                         .forEach { url ->
-                            imageLoader.enqueue(ImageRequest.Builder(platformContext).data(url).build())
+                            imageLoader.enqueue(ImageRequest.Builder(platformContext).data(url).size(Size.ORIGINAL).build())
                         }
                 }
                 neighbours.forEach { item ->
@@ -453,7 +455,12 @@ internal fun HomeHeroSection(
                             val isCurrentLayer = layer.page == currentPage
                             key(effectiveArtworkSource, item.type, item.id, artworkUrl) {
                                 AsyncImage(
-                                    model = artworkUrl,
+                                    model = remember(platformContext, artworkUrl) {
+                                        ImageRequest.Builder(platformContext)
+                                            .data(artworkUrl)
+                                            .size(Size.ORIGINAL)
+                                            .build()
+                                    },
                                     contentDescription = item.name,
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -709,10 +716,11 @@ private data class HeroPageLayer(
     val itemIndex: Int,
 )
 
-private fun heroArtworkUrl(item: MetaPreview, source: HomeHeroArtworkSource): String? = when (source) {
-    HomeHeroArtworkSource.POSTER -> item.poster ?: item.banner
-    HomeHeroArtworkSource.BACKDROP -> item.banner ?: item.poster
-}
+private fun heroArtworkUrl(item: MetaPreview, source: HomeHeroArtworkSource): String? =
+    originalHeroArtworkUrl(when (source) {
+        HomeHeroArtworkSource.POSTER -> item.poster ?: item.banner
+        HomeHeroArtworkSource.BACKDROP -> item.banner ?: item.poster
+    })
 
 private fun heroPageOffset(
     pagerState: PagerState,

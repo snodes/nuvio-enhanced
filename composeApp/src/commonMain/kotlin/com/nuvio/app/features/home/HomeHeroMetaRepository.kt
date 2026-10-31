@@ -13,6 +13,7 @@ import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.mdblist.MdbListMetadataService
 import com.nuvio.app.features.mdblist.MdbListSettings
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
+import com.nuvio.app.features.tmdb.TmdbBackdrops
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +39,7 @@ internal data class HomeHeroState(
 internal data class HomeHeroMeta(
     val details: MetaDetails? = null,
     val ratings: List<MetaExternalRating> = emptyList(),
+    val backdrop: String? = null,
 )
 
 internal object HomeHeroMetaRepository {
@@ -70,8 +72,12 @@ internal object HomeHeroMetaRepository {
                     .orEmpty()
                 update(key) { meta -> meta.copy(ratings = ratings) }
             }
-            val resolved = details.await() ?: return@coroutineScope
+            val resolved = details.await()
             update(key) { meta -> meta.copy(details = resolved) }
+            val backdrop = permits.withPermit {
+                TmdbBackdrops.resolve(item.id, item.type, item.banner, resolved?.imdbId)
+            }
+            update(key) { meta -> meta.copy(backdrop = backdrop) }
         }
     }
 
@@ -119,6 +125,7 @@ internal fun MetaPreview.withHeroMeta(meta: HomeHeroMeta): MetaPreview {
         it.enabled && it.titleLanguage == TmdbTitleLanguage.ORIGINAL
     }
     return copy(
+        banner = meta.backdrop ?: banner,
         name = details?.name?.takeIf { useOriginalTitle && it.isNotBlank() } ?: name,
         logo = details?.logo?.takeIf { useOriginalTitle && it.isNotBlank() } ?: logo,
         genres = details?.genres?.takeIf { it.isNotEmpty() } ?: genres,

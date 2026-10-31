@@ -1,0 +1,56 @@
+[
+  {
+    "title": "Samurai Champloo",
+    "imdb_id": "tt0423731",
+    "tmdb_id": 1063,
+    "media_type": "tv",
+    "before_url": "https://image.tmdb.org/t/p/original/aZRGh7ccNAdqQWhHypvlT9UuXjZ.jpg",
+    "before_dimensions": [
+      1920,
+      1080
+    ],
+    "after_url": "https://image.tmdb.org/t/p/original/s6n7WhTmKcucYkyCSCLjUvTei2Y.jpg",
+    "after_dimensions": [
+      3840,
+      2160
+    ],
+    "selected_votes": 0,
+    "selected_language": null
+  },
+  {
+    "title": "Severance",
+    "imdb_id": "tt11280740",
+    "tmdb_id": 95396,
+    "media_type": "tv",
+    "before_url": "https://image.tmdb.org/t/p/original/ixgFmf1X59PUZam2qbAfskx2gQr.jpg",
+    "before_dimensions": [
+      3840,
+      2160
+    ],
+    "after_url": "https://image.tmdb.org/t/p/original/npD65vPa4vvn1ZHpp3o05A5vdKT.jpg",
+    "after_dimensions": [
+      3840,
+      2160
+    ],
+    "selected_votes": 36,
+    "selected_language": null
+  },
+  {
+    "title": "Parasite",
+    "imdb_id": "tt6751668",
+    "tmdb_id": 496243,
+    "media_type": "movie",
+    "before_url": "https://image.tmdb.org/t/p/original/TU9NIjwzjoKPwQHoHshkFcQUCG.jpg",
+    "before_dimensions": [
+      2732,
+      1536
+    ],
+    "after_url": "https://image.tmdb.org/t/p/original/cI1RBfqXbWaITTjcKGYLhd9F083.jpg",
+    "after_dimensions": [
+      3840,
+      2160
+    ],
+    "selected_votes": 11,
+    "selected_language": null
+  }
+]
