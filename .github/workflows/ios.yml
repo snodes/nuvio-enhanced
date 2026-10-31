@@ -1,14 +1,16 @@
-# Private build of Nuvio Enhanced (snodes/nuvio-enhanced).
-# Every push builds an unsigned Release IPA (artifact Nuvio-unsigned-ipa) that `nuvio-phone`
-# publishes to a private LiveContainer source, and runs the focused shared
-# player tests (track selection, brightness) on Linux plus a simulator subtitle render.
-# Runtime keys come from the NUVIO_LOCAL_PROPERTIES_BASE64 secret.
+# Personal build of Nuvio Enhanced (snodes/nuvio-enhanced, a public repo).
+# Every push builds an unsigned Release IPA that `nuvio-phone` publishes to a private
+# LiveContainer source, and runs the focused shared player tests (track selection,
+# brightness) on Linux plus a simulator subtitle render.
+# Runtime keys come from the NUVIO_LOCAL_PROPERTIES_BASE64 secret and are compiled into the
+# IPA, so the artifact is only uploaded encrypted (AES-256, IPA_PASSPHRASE secret); never
+# upload the plain IPA or print local.properties.
 name: iOS
 
 
 on:
   push:
-    branches: [text-subs-first, phone-ci-fix]
+    branches: [text-subs-first]
   workflow_dispatch:
 
 permissions:
@@ -123,9 +125,24 @@ jobs:
       - name: Build unsigned IPA
         run: ./scripts/build-ios-ipa.sh
 
+      - name: Encrypt IPA
+        env:
+          IPA_PASSPHRASE: ${{ secrets.IPA_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          [ -n "$IPA_PASSPHRASE" ] || { echo "IPA_PASSPHRASE secret missing" >&2; exit 1; }
+          openssl=/opt/homebrew/opt/openssl@3/bin/openssl
+          "$openssl" version | grep -q '^OpenSSL 3'
+          ipas=(build/ios-ipa/*-release.ipa)
+          [ "${#ipas[@]}" -eq 1 ]
+          mkdir -p build/ios-ipa-enc
+          "$openssl" enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:IPA_PASSPHRASE \
+            -in "${ipas[0]}" -out build/ios-ipa-enc/Nuvio.ipa.enc
+          rm -f build/ios-ipa/*.ipa
+
       - uses: actions/upload-artifact@v7
         with:
-          name: Nuvio-unsigned-ipa
-          path: build/ios-ipa/*-release.ipa
+          name: Nuvio-ipa-encrypted
+          path: build/ios-ipa-enc/Nuvio.ipa.enc
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14
