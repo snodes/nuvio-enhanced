@@ -15,9 +15,11 @@ import coil3.util.component1
 import coil3.util.component2
 import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
+import okio.use
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageInfo
+import org.jetbrains.skia.impl.Managed
 import kotlin.math.PI
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -36,7 +38,7 @@ internal class PosterBitmapDecoder(
     @OptIn(ExperimentalCoilApi::class)
     override suspend fun decode(): DecodeResult {
         val bytes = source.source().use { it.readByteArray() }
-        return Image.makeFromEncoded(bytes).use { image ->
+        return Image.makeFromEncoded(bytes).closing { image ->
             val (width, height) = DecodeUtils.computeDstSize(
                 image.width, image.height, options.size, options.scale, options.maxBitmapSize,
             )
@@ -53,7 +55,7 @@ internal class PosterBitmapDecoder(
                 if (image.width == bitmap.width && image.height == bitmap.height) {
                     check(image.readPixels(bitmap, 0, 0))
                 } else {
-                    Bitmap().use { original ->
+                    Bitmap().closing { original ->
                         check(original.allocN32Pixels(image.width, image.height))
                         check(image.readPixels(original, 0, 0))
                         check(bitmap.installPixels(lanczosResize(original, bitmap.width, bitmap.height)))
@@ -216,3 +218,11 @@ private fun lanczos3(x: Double): Double = when {
         LanczosSupport * sin(px) * sin(px / LanczosSupport) / (px * px)
     }
 }
+
+/** Kotlin/Native's Skia objects aren't AutoCloseable, so the JVM's `use {}` isn't available here. */
+private inline fun <T : Managed, R> T.closing(block: (T) -> R): R =
+    try {
+        block(this)
+    } finally {
+        close()
+    }
