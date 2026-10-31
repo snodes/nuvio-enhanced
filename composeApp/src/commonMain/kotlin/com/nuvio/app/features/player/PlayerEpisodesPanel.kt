@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.episodeCodeLabel
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -335,11 +337,7 @@ private fun EpisodeRow(
     val shouldBlurArtwork = blurUnwatchedEpisodes && !isWatched
     val playingDescription = stringResource(Res.string.compose_player_playing)
     val episodeCode = when {
-        episode.season != null && episode.episode != null -> stringResource(
-            Res.string.compose_player_episode_code_full,
-            episode.season,
-            episode.episode,
-        )
+        episode.season != null && episode.episode != null -> episodeCodeLabel(episode.season, episode.episode)
         episode.episode != null -> stringResource(
             Res.string.compose_player_episode_code_episode_only,
             episode.episode,
@@ -475,11 +473,7 @@ private fun EpisodeStreamsPanelContent(
                 text = buildString {
                     if (episode.season != null && episode.episode != null) {
                         append(
-                            stringResource(
-                                Res.string.compose_player_episode_code_full,
-                                episode.season,
-                                episode.episode,
-                            ),
+                            episodeCodeLabel(episode.season, episode.episode),
                         )
                     }
                     if (episode.title.isNotBlank()) {

@@ -1,5 +1,8 @@
 package com.nuvio.app.features.player
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.nuvio.app.core.ui.LocalEpisodeOnlyCodes
+import com.nuvio.app.core.ui.usesEpisodeOnlyCodes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.nuvio.app.features.party.PartyMedia
@@ -48,49 +51,51 @@ fun PlayerScreen(
     sourceFilename: String? = null,
     stream: com.nuvio.app.features.streams.StreamItem? = null,
 ) {
-    PlayerScreenContent(
-        PlayerScreenArgs(
-            profileId = profileId,
-            title = title,
-            sourceUrl = sourceUrl,
-            sourceAudioUrl = sourceAudioUrl,
-            sourceHeaders = sourceHeaders,
-            sourceResponseHeaders = sourceResponseHeaders,
-            externalSubtitles = externalSubtitles,
-            streamType = streamType,
-            providerName = providerName,
-            streamTitle = streamTitle,
-            streamSubtitle = streamSubtitle,
-            initialBingeGroup = initialBingeGroup,
-            pauseDescription = pauseDescription,
-            onBack = onBack,
-            onOpenInExternalPlayer = onOpenInExternalPlayer,
-            onOpenExternalUrl = onOpenExternalUrl,
-            onOpenMetaDetails = onOpenMetaDetails,
-            modifier = modifier,
-            logo = logo,
-            poster = poster,
-            background = background,
-            seasonNumber = seasonNumber,
-            episodeNumber = episodeNumber,
-            episodeTitle = episodeTitle,
-            episodeThumbnail = episodeThumbnail,
-            contentType = contentType,
-            videoId = videoId,
-            parentMetaId = parentMetaId,
-            parentMetaType = parentMetaType,
-            providerAddonId = providerAddonId,
-            torrentInfoHash = torrentInfoHash,
-            torrentFileIdx = torrentFileIdx,
-            torrentFilename = torrentFilename,
-            torrentTrackers = torrentTrackers,
-            initialPositionMs = initialPositionMs,
-            initialProgressFraction = initialProgressFraction,
-            contentLanguage = contentLanguage,
-            launchId = launchId,
-            sourceFilename = sourceFilename,
-            onOpenPartyMedia = onOpenPartyMedia,
-            stream = stream,
+    CompositionLocalProvider(LocalEpisodeOnlyCodes provides usesEpisodeOnlyCodes(parentMetaId)) {
+        PlayerScreenContent(
+            PlayerScreenArgs(
+                profileId = profileId,
+                title = title,
+                sourceUrl = sourceUrl,
+                sourceAudioUrl = sourceAudioUrl,
+                sourceHeaders = sourceHeaders,
+                sourceResponseHeaders = sourceResponseHeaders,
+                externalSubtitles = externalSubtitles,
+                streamType = streamType,
+                providerName = providerName,
+                streamTitle = streamTitle,
+                streamSubtitle = streamSubtitle,
+                initialBingeGroup = initialBingeGroup,
+                pauseDescription = pauseDescription,
+                onBack = onBack,
+                onOpenInExternalPlayer = onOpenInExternalPlayer,
+                onOpenExternalUrl = onOpenExternalUrl,
+                onOpenMetaDetails = onOpenMetaDetails,
+                modifier = modifier,
+                logo = logo,
+                poster = poster,
+                background = background,
+                seasonNumber = seasonNumber,
+                episodeNumber = episodeNumber,
+                episodeTitle = episodeTitle,
+                episodeThumbnail = episodeThumbnail,
+                contentType = contentType,
+                videoId = videoId,
+                parentMetaId = parentMetaId,
+                parentMetaType = parentMetaType,
+                providerAddonId = providerAddonId,
+                torrentInfoHash = torrentInfoHash,
+                torrentFileIdx = torrentFileIdx,
+                torrentFilename = torrentFilename,
+                torrentTrackers = torrentTrackers,
+                initialPositionMs = initialPositionMs,
+                initialProgressFraction = initialProgressFraction,
+                contentLanguage = contentLanguage,
+                launchId = launchId,
+                sourceFilename = sourceFilename,
+                onOpenPartyMedia = onOpenPartyMedia,
+                stream = stream,
+            )
         )
-    )
+    }
 }

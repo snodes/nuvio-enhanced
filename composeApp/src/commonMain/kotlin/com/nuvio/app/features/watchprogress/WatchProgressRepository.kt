@@ -1,5 +1,7 @@
 package com.nuvio.app.features.watchprogress
 
+import com.nuvio.app.features.anime.toKitsuAnime
+
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
@@ -1312,6 +1314,8 @@ object WatchProgressRepository {
             lastSourceUrl = session.lastSourceUrl,
             isCompleted = isCompleted,
         ).normalizedCompletion()
+            // Nuvio's own history keeps anime under Kitsu ids, whichever catalog the show was opened from.
+            .let { entry -> if (progressProvider == null) entry.toKitsuAnime() else entry }
 
         if (targetProfileId != currentProfileId || ProfileRepository.activeProfileId != targetProfileId) {
             val resolvedEntry = resolveStoredProfileProgressIdentity(

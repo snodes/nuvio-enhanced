@@ -1,11 +1,12 @@
 package com.nuvio.app.features.home.components
 
+import com.nuvio.app.core.ui.episodeCodeLabel
+
 import com.nuvio.app.core.ui.listCardArtworkUrl
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -128,7 +129,7 @@ private fun continueWatchingProgressPercent(progressFraction: Float): Int =
 private fun localizedContinueWatchingMetaLine(item: ContinueWatchingItem): String =
     when {
         item.seasonNumber != null && item.episodeNumber != null ->
-            stringResource(Res.string.compose_player_episode_code_full, item.seasonNumber, item.episodeNumber)
+            episodeCodeLabel(item.seasonNumber, item.episodeNumber, item.parentMetaId)
         item.isCloudLibraryItem() ->
             stringResource(Res.string.library_source_cloud)
         else ->
@@ -702,7 +703,7 @@ private fun ContinueWatchingCard(
         artworkUrl = imageUrl,
     )
     val episodeCode = if (item.seasonNumber != null && item.episodeNumber != null) {
-        stringResource(Res.string.streams_episode_badge, item.seasonNumber, item.episodeNumber)
+        episodeCodeLabel(item.seasonNumber, item.episodeNumber, item.parentMetaId)
     } else {
         null
     }
@@ -899,6 +900,8 @@ private fun ContinueWatchingWideCard(
     val cornerRadius = rememberPosterCardStyleUiState().cornerRadiusDp.dp
     Row(
         modifier = Modifier
+            // Shared poster long-press: hands the card's position to the lift-and-zoom preview.
+            .posterCardClickable(onClick = onClick, onLongClick = onLongClick)
             .width(layout.wideCardWidth)
             .height(layout.wideCardHeight)
             .clip(RoundedCornerShape(cornerRadius))
@@ -907,11 +910,6 @@ private fun ContinueWatchingWideCard(
                 width = 1.5.dp,
                 color = Color.White.copy(alpha = 0.15f),
                 shape = RoundedCornerShape(cornerRadius),
-            )
-            .combinedClickable(
-                enabled = onClick != null || onLongClick != null,
-                onClick = { onClick?.invoke() },
-                onLongClick = onLongClick,
             ),
     ) {
         val artworkUrl = listCardArtworkUrl(item.poster, item.background, item.episodeThumbnail, item.imageUrl)
@@ -1140,11 +1138,7 @@ private fun ContinueWatchingPosterCard(
             }
             if (item.seasonNumber != null && item.episodeNumber != null) {
                 Text(
-                    text = stringResource(
-                        Res.string.streams_episode_badge,
-                        item.seasonNumber,
-                        item.episodeNumber,
-                    ),
+                    text = episodeCodeLabel(item.seasonNumber, item.episodeNumber, item.parentMetaId),
                     modifier = Modifier.padding(start = 6.dp),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = layout.posterMetaSize,

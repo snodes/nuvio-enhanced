@@ -1,5 +1,8 @@
 package com.nuvio.app.features.watched
 
+import com.nuvio.app.features.anime.AnimeKitsuIds
+import com.nuvio.app.features.anime.toKitsuAnime
+
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
@@ -334,6 +337,47 @@ object WatchedRepository {
                 activeGeneration = sourceGeneration,
             )
 
+    /**
+     * One-time-per-record cleanup: anime marked under IMDb ids (before the Kitsu switch, or opened from
+     * a TMDB/IMDb row) is moved to its Kitsu entry, so one show stops producing two Next Up cards.
+     * Only Nuvio's own history and Nuvio Sync change; trackers (AniList, Trakt, Simkl) and media servers
+     * are left alone. Runs after every pull, so records arriving from older app builds fold in too.
+     */
+    internal suspend fun foldImdbAnimeIntoKitsu(profileId: Int) {
+        if (activeSource.providerId != null || profileId != currentProfileId) return
+        val (added, removed) = itemsStore.update { nuvioItems, _, dirtyNuvioKeys, _ ->
+            val added = mutableListOf<WatchedItem>()
+            val removed = mutableListOf<WatchedItem>()
+            nuvioItems.entries.toList().forEach { (key, item) ->
+                val kitsu = item.toKitsuAnime()
+                if (kitsu == item) return@forEach
+                nuvioItems.remove(key)
+                dirtyNuvioKeys.remove(key)
+                removed += item
+                val kitsuKey = watchedItemKey(kitsu.type, kitsu.id, kitsu.season, kitsu.episode)
+                val existing = nuvioItems[kitsuKey]
+                if (existing == null || existing.markedAtEpochMs < kitsu.markedAtEpochMs) {
+                    nuvioItems[kitsuKey] = kitsu
+                    dirtyNuvioKeys += kitsuKey
+                    added += kitsu
+                }
+            }
+            added to removed
+        }
+        if (removed.isEmpty()) return
+        log.i { "Folded ${removed.size} IMDb anime marks into ${added.size} Kitsu marks" }
+        publish()
+        persist()
+        try {
+            if (added.isNotEmpty()) syncAdapter.push(profileId = profileId, items = added)
+            syncAdapter.delete(profileId = profileId, items = removed)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            log.e(error) { "Failed to sync the IMDb-to-Kitsu anime cleanup; it retries on the next pull" }
+        }
+    }
+
     suspend fun pullFromServer(profileId: Int) {
         TrackingProviderRegistry.ensureLoaded()
         TrackingSettingsRepository.ensureLoaded()
@@ -345,6 +389,7 @@ object WatchedRepository {
             ),
             forceSnapshot = false,
         )
+        foldImdbAnimeIntoKitsu(profileId)
     }
 
     suspend fun forceSnapshotRefreshFromServer(profileId: Int) {
@@ -358,6 +403,7 @@ object WatchedRepository {
             ),
             forceSnapshot = true,
         )
+        foldImdbAnimeIntoKitsu(profileId)
     }
 
     internal suspend fun refreshForSource(
@@ -787,7 +833,9 @@ object WatchedRepository {
         val source = activeSource
         val markedAt = WatchedClock.nowEpochMs()
         val timestampedItems = items.map { watchedItem ->
-            watchedItem.copy(markedAtEpochMs = markedAt)
+            // Nuvio's own history keeps anime under Kitsu ids, whichever catalog the show was opened from.
+            val canonical = if (source.providerId == null) watchedItem.toKitsuAnime() else watchedItem
+            canonical.copy(markedAtEpochMs = markedAt)
         }
         itemsStore.update { nuvioItems, providerItems, dirtyNuvioKeys, dirtyProviderKeys ->
             val targetItems = source.providerId
@@ -838,7 +886,8 @@ object WatchedRepository {
     }
 
     fun unmarkWatched(items: Collection<WatchedItem>) {
-        unmarkWatched(items = items, syncRemote = true)
+        val withKitsuForms = items + items.map(WatchedItem::toKitsuAnime).filterNot { it in items }
+        unmarkWatched(items = withKitsuForms, syncRemote = true)
     }
 
     private fun unmarkWatched(items: Collection<WatchedItem>, syncRemote: Boolean) {
@@ -901,7 +950,10 @@ object WatchedRepository {
     ): Boolean {
         ensureLoaded()
         val source = activeSource
-        val keys = watchedItemKeys(type = type, id = id, season = season, episode = episode)
+        val kitsu = if (source.providerId == null) AnimeKitsuIds.toKitsu(id, season, episode) else null
+        val keys = watchedItemKeys(type = type, id = id, season = season, episode = episode) +
+            (kitsu?.let { watchedItemKeys(type = type, id = it.kitsuMetaId, season = it.season, episode = it.episode) }
+                ?: emptySet())
         val stored = itemsStore.read { nuvioItems, providerItems, _, _ ->
             source.providerId?.let { providerId ->
                 providerItems[providerId]?.let { itemsByKey -> keys.any(itemsByKey::containsKey) } == true

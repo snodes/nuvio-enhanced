@@ -1,5 +1,7 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.core.ui.episodeCodeLabel
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -752,7 +754,7 @@ private fun EpisodeHeroBlock(
         ) {
             // Episode label
             Text(
-                text = stringResource(Res.string.streams_episode_badge, seasonNumber, episodeNumber),
+                text = episodeCodeLabel(seasonNumber, episodeNumber),
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
