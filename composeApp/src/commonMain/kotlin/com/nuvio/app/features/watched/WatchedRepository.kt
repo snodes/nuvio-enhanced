@@ -341,7 +341,7 @@ object WatchedRepository {
      * One-time-per-record cleanup: anime marked under IMDb ids (before the Kitsu switch, or opened from
      * a TMDB/IMDb row) is moved to its Kitsu entry, so one show stops producing two Next Up cards.
      * Only Nuvio's own history and Nuvio Sync change; trackers (AniList, Trakt, Simkl) and media servers
-     * are left alone. Runs after every pull, so records arriving from older app builds fold in too.
+     * are left alone. Runs after every Nuvio Sync refresh, so records arriving from older app builds fold in too.
      */
     internal suspend fun foldImdbAnimeIntoKitsu(profileId: Int) {
         if (activeSource.providerId != null || profileId != currentProfileId) return
@@ -389,7 +389,6 @@ object WatchedRepository {
             ),
             forceSnapshot = false,
         )
-        foldImdbAnimeIntoKitsu(profileId)
     }
 
     suspend fun forceSnapshotRefreshFromServer(profileId: Int) {
@@ -403,7 +402,6 @@ object WatchedRepository {
             ),
             forceSnapshot = true,
         )
-        foldImdbAnimeIntoKitsu(profileId)
     }
 
     internal suspend fun refreshForSource(
@@ -438,7 +436,7 @@ object WatchedRepository {
                 return true
             }
         }
-        return try {
+        val refreshed = try {
             effectiveSource.providerId?.let { providerId ->
                 val provider = TrackingProviderRegistry.watchedProvider(providerId)
                     ?: run {
@@ -468,6 +466,8 @@ object WatchedRepository {
             log.e(error) { "Failed to refresh watched items from $effectiveSource" }
             false
         }
+        if (refreshed && effectiveSource.providerId == null) foldImdbAnimeIntoKitsu(profileId)
+        return refreshed
     }
 
     private suspend fun refreshNuvioSnapshot(
