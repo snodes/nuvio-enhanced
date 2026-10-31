@@ -20,9 +20,7 @@ internal fun rememberContinueWatchingSeasonArt(
     addons: List<ManagedAddon>,
     profileId: Int,
 ): List<ContinueWatchingItem> {
-    val relayUrls = addons.filter {
-        it.enabled && it.manifest?.id == "local.anilist-watching"
-    }.map { it.manifestUrl }
+    val relayUrls = addons.filter { it.enabled && isAniListRelay(it.manifest?.id) }.map { it.manifestUrl }
     var artwork by remember(profileId, relayUrls) { mutableStateOf<List<MetaPreview>>(emptyList()) }
     LaunchedEffect(profileId, relayUrls) {
         artwork = loadContinueWatchingSeasonArt(relayUrls) { url ->
@@ -36,6 +34,12 @@ internal fun rememberContinueWatchingSeasonArt(
     }
     return remember(items, artwork) { applyContinueWatchingSeasonArt(items, artwork) }
 }
+
+// iOS keeps only addon URLs on disk and the manifest it last fetched in memory, so a phone
+// that installed the relay before its rename still reports the old id until a refresh.
+private val AniListRelayIds = setOf("local.anilist-watching", "jacob.anilist-watching")
+
+internal fun isAniListRelay(manifestId: String?): Boolean = manifestId in AniListRelayIds
 
 internal suspend fun loadContinueWatchingSeasonArt(
     relayUrls: List<String>,

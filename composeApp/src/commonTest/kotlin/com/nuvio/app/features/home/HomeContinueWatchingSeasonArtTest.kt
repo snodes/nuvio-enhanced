@@ -7,6 +7,8 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class HomeContinueWatchingSeasonArtTest {
     private fun item(id: String = "kitsu:49847") = ContinueWatchingItem(
@@ -92,5 +94,12 @@ class HomeContinueWatchingSeasonArtTest {
         }
         assertEquals(listOf("https://phone-relay/manifest.json"), seen)
         assertEquals(listOf(art()), result)
+    }
+
+    @Test fun relayMatchesItsCurrentAndPreRenameIds() {
+        assertTrue(isAniListRelay("local.anilist-watching"))
+        assertTrue(isAniListRelay("jacob.anilist-watching"))
+        assertFalse(isAniListRelay("community.anilist"))
+        assertFalse(isAniListRelay(null))
     }
 }
