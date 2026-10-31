@@ -1,5 +1,6 @@
 package com.nuvio.app.features.home
 
+import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -101,5 +102,16 @@ class HomeContinueWatchingSeasonArtTest {
         assertTrue(isAniListRelay("jacob.anilist-watching"))
         assertFalse(isAniListRelay("community.anilist"))
         assertFalse(isAniListRelay(null))
+    }
+
+    @Test fun missingPosterIsFilledFromShowMetaButExistingArtIsKept() {
+        val bare = item("tt10233448").copy(poster = null, background = null, rawPosterUrl = null, episodeThumbnail = "ep-still")
+        val meta = mapOf("tt10233448" to MetaDetails(id = "tt10233448", type = "series", name = "Vinland Saga", poster = "show-poster", background = "show-bg"))
+        val filled = applyMissingPosters(listOf(bare, item()), meta)
+        assertEquals("show-poster", filled[0].poster)
+        assertEquals("show-bg", filled[0].background)
+        assertEquals("ep-still", filled[0].episodeThumbnail)
+        assertEquals(item(), filled[1])
+        assertEquals(bare, applyMissingPosters(listOf(bare), emptyMap()).single())
     }
 }

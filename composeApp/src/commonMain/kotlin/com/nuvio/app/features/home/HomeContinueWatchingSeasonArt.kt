@@ -8,6 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.nuvio.app.features.addons.ManagedAddon
 import com.nuvio.app.features.catalog.fetchCatalogPage
+import com.nuvio.app.features.details.MetaDetails
+import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeoutOrNull
@@ -74,4 +76,43 @@ internal fun applyContinueWatchingSeasonArt(
             rawBackgroundUrl = banner,
         )
     }
+}
+
+// Synced progress can arrive with no poster or backdrop (the phone never played it), which leaves
+// the wide card's poster slot showing a spoiler-blurred episode still. Look the show up once
+// (MetaDetailsRepository caches it) and fill in only what is missing, as the PC already stores.
+@Composable
+internal fun rememberContinueWatchingMissingPosters(
+    items: List<ContinueWatchingItem>,
+): List<ContinueWatchingItem> {
+    val missing = items.filter { it.poster.isNullOrBlank() }
+        .map { it.parentMetaType to it.parentMetaId }
+        .distinct()
+    var posters by remember { mutableStateOf<Map<String, MetaDetails>>(emptyMap()) }
+    LaunchedEffect(missing) {
+        missing.filterNot { (_, id) -> id in posters }.forEach { (type, id) ->
+            val meta = try {
+                MetaDetailsRepository.fetch(type, id)
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                null
+            } ?: return@forEach
+            posters = posters + (id to meta)
+        }
+    }
+    return remember(items, posters) { applyMissingPosters(items, posters) }
+}
+
+internal fun applyMissingPosters(
+    items: List<ContinueWatchingItem>,
+    metaById: Map<String, MetaDetails>,
+): List<ContinueWatchingItem> = items.map { item ->
+    if (!item.poster.isNullOrBlank()) return@map item
+    val meta = metaById[item.parentMetaId] ?: return@map item
+    val poster = meta.poster?.takeIf(String::isNotBlank) ?: return@map item
+    item.copy(
+        poster = poster,
+        background = item.background?.takeIf(String::isNotBlank) ?: meta.background?.takeIf(String::isNotBlank),
+        rawPosterUrl = item.rawPosterUrl?.takeIf(String::isNotBlank) ?: poster,
+    )
 }
