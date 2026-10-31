@@ -1156,7 +1156,16 @@ fun MetaDetailsScreen(
                     val isTabletLandscape = maxWidth > maxHeight
                     val contentHorizontalPadding = if (isTablet) 32.dp else 18.dp
                     val contentMaxWidth = detailTabletContentMaxWidth(maxWidth, isTablet)
-                    val backdropUrl = meta.background ?: meta.poster
+                    val originalBackdrop = meta.background ?: meta.poster
+                    var selectedBackdrop by remember(meta.id, meta.type, originalBackdrop) {
+                        mutableStateOf(originalBackdrop)
+                    }
+                    LaunchedEffect(meta.id, meta.type, meta.imdbId, originalBackdrop, deferredMetaWorkAllowed) {
+                        if (deferredMetaWorkAllowed) {
+                            selectedBackdrop = TmdbBackdrops.resolve(meta.id, meta.type, originalBackdrop, meta.imdbId)
+                        }
+                    }
+                    val backdropUrl = selectedBackdrop
                     val backgroundMode = metaScreenSettingsUiState.backgroundMode
                     val dominantColorEnabled = backgroundMode == MetaScreenBackgroundMode.DominantColor &&
                         !backdropUrl.isNullOrBlank()

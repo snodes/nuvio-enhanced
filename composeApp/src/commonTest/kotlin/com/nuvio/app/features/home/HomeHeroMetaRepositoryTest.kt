@@ -18,6 +18,16 @@ class HomeHeroMetaRepositoryTest {
     )
 
     @Test
+    fun `artwork lookup changes only backdrop not season poster`() {
+        val original = preview.copy(poster = "season-poster", banner = "soft-backdrop")
+        val merged = original.withHeroMeta(HomeHeroMeta(backdrop = "largest-textless"))
+        assertEquals("largest-textless", merged.banner)
+        assertEquals("season-poster", merged.poster)
+        assertEquals(original.id, merged.id)
+        assertEquals(original.name, merged.name)
+    }
+
+    @Test
     fun `full meta fills hero fields over catalog values`() {
         val merged = preview.withHeroMeta(
             HomeHeroMeta(
