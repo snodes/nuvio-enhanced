@@ -8,7 +8,7 @@ name: iOS
 
 on:
   push:
-    branches: [text-subs-first]
+    branches: [text-subs-first, phone-ci-fix]
   workflow_dispatch:
 
 permissions:
@@ -35,11 +35,17 @@ jobs:
           # Linux only tests shared player logic; do not require the Apple engine.
           touch local.properties
           focused=composeApp/build/player-selection-tests/kotlin/com/nuvio/app/features/player
+          tmdb=composeApp/build/player-selection-tests/kotlin/com/nuvio/app/features/tmdb
           host=composeApp/build/player-host-tests/kotlin/com/nuvio/app/features/player
-          mkdir -p "$focused" "$host"
+          mkdir -p "$focused" "$host" "$tmdb"
           cp composeApp/src/commonTest/kotlin/com/nuvio/app/features/player/PlayerTrackSelectionTest.kt "$focused/"
+          cp composeApp/src/commonTest/kotlin/com/nuvio/app/features/player/{PreferredAudioTrackTest,OriginalAudioPreferenceTest}.kt "$focused/"
+          cp composeApp/src/commonTest/kotlin/com/nuvio/app/features/tmdb/TmdbBackdropPickerTest.kt "$tmdb/"
           cp composeApp/src/androidHostTest/kotlin/com/nuvio/app/features/player/PlayerBrightnessTest.kt "$host/"
           ./gradlew :composeApp:testAndroidHostTest --tests 'com.nuvio.app.features.player.PlayerTrackSelectionTest' \
+            --tests 'com.nuvio.app.features.player.PreferredAudioTrackTest' \
+            --tests 'com.nuvio.app.features.player.OriginalAudioPreferenceTest' \
+            --tests 'com.nuvio.app.features.tmdb.TmdbBackdropPickerTest' \
             --tests 'com.nuvio.app.features.player.PlayerBrightnessTest' \
             -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore \
             -Pnuvio.playerSelectionTestsOnly=true --stacktrace
