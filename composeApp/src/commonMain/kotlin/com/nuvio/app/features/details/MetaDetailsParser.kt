@@ -62,6 +62,10 @@ internal object MetaDetailsParser {
             links = links,
             seasonPosters = meta.seasonPosters(videos),
             videos = videos,
+            // AIOMetadata uses private camel-case IDs; other addons use snake-case IDs.
+            isAnime = listOf("_malId", "_kitsuId", "_anilistId", "mal_id", "kitsu_id", "anilist_id").any { key ->
+                (meta[key] as? JsonPrimitive)?.contentOrNull?.trim()?.toLongOrNull()?.let { it > 0 } == true
+            },
         )
     }
 

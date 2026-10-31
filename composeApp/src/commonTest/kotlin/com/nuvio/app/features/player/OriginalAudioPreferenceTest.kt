@@ -3,6 +3,7 @@ package com.nuvio.app.features.player
 import androidx.compose.ui.Modifier
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaDetailsUiState
+import com.nuvio.app.features.details.MetaDetailsParser
 import com.nuvio.app.features.tmdb.TmdbEnrichment
 import com.nuvio.app.features.tmdb.TmdbMetadataService
 import com.nuvio.app.features.tmdb.TmdbSettings
@@ -366,6 +367,110 @@ class OriginalAudioPreferenceTest {
 
         assertEquals(0, runtime.selectedSubtitleIndex)
         assertEquals(listOf(1, 0), controller.subtitleSelections)
+    }
+
+    @Test
+    fun animeIdsResolveOriginalWithoutEnrichment() {
+        for (id in listOf("kitsu:12", "mal:21", "anilist:21")) {
+            val controller = RecordingController(listOf(
+                AudioTrack(0, "1", "English dub", "eng", true),
+                AudioTrack(1, "2", "Japanese", "jpn"),
+            ))
+            val runtime = runtime(controller)
+            runtime.args = runtime.args.copy(parentMetaId = id, videoId = "$id:1:1", parentMetaType = "series")
+            runtime.playerSettingsUiState = runtime.playerSettingsUiState.copy(secondaryPreferredAudioLanguage = "en")
+
+            runtime.refreshTracks()
+
+            assertEquals("ja", runtime.contentLanguage)
+            assertEquals(listOf(listOf("ja", "en")), controller.audioLanguagePreferences)
+        }
+    }
+
+    @Test
+    fun imdbVinlandSagaAddonIdsResolveOriginalWithoutAnimeGenre() {
+        val controller = RecordingController(listOf(
+            AudioTrack(0, "1", "English dub", "eng", true),
+            AudioTrack(1, "2", "Japanese", "jpn"),
+        ))
+        val runtime = runtime(controller)
+        runtime.args = runtime.args.copy(parentMetaId = "tt10233448", videoId = "tt10233448:1:1", parentMetaType = "series")
+        runtime.playerSettingsUiState = runtime.playerSettingsUiState.copy(secondaryPreferredAudioLanguage = "en")
+        runtime.playerMeta = MetaDetailsParser.parse(
+            """{"meta":{"id":"tt10233448","type":"series","name":"Vinland Saga",
+                "genres":["Action","Adventure","Drama"],"_malId":"37521",
+                "_kitsuId":"41084","_anilistId":"101348"}}""",
+        ).copy(description = "Metadata copies retain anime identity")
+
+        runtime.refreshTracks()
+
+        assertEquals("ja", runtime.contentLanguage)
+        assertEquals(listOf(listOf("ja", "en")), controller.audioLanguagePreferences)
+        controller.reportAudioSelection(1)
+        runtime.refreshAudioTracksIfChanged()
+        assertEquals(1, runtime.selectedAudioIndex)
+    }
+
+    @Test
+    fun imdbAnimeGenreResolvesOriginalButAnimationAloneDoesNot() {
+        val runtime = runtime(RecordingController(audioTracks()))
+        for (id in listOf("tt0388629", "tt10233448")) {
+            runtime.args = runtime.args.copy(parentMetaId = id, videoId = id, parentMetaType = "series")
+            runtime.playerMeta = MetaDetails(id = id, type = "series", name = "Anime", genres = listOf("Anime"))
+            assertEquals("ja", runtime.contentLanguage)
+            runtime.playerMeta = runtime.playerMeta?.copy(genres = listOf("Animation"))
+            assertEquals(null, runtime.contentLanguage)
+        }
+    }
+
+    @Test
+    fun animeTypeIsFallbackOnlyAndLiveActionKeepsMetadataLanguage() {
+        val runtime = runtime(RecordingController(audioTracks()))
+        runtime.args = runtime.args.copy(parentMetaType = "anime")
+        assertEquals("ja", runtime.contentLanguage)
+        runtime.args = runtime.args.copy(contentLanguage = "ko")
+        assertEquals("ko", runtime.contentLanguage)
+        runtime.args = runtime.args.copy(contentLanguage = null, parentMetaType = "movie")
+        runtime.playerMeta = MetaDetails(id = runtime.args.parentMetaId, type = "movie", name = "French film", country = "France")
+        assertEquals("fr", runtime.contentLanguage)
+        runtime.playerMeta = runtime.playerMeta?.copy(language = "de")
+        assertEquals("de", runtime.contentLanguage)
+    }
+
+    @Test
+    fun unknownLanguageTagDoesNotHideAnimeFallback() {
+        val runtime = runtime(RecordingController(audioTracks()))
+        runtime.args = runtime.args.copy(parentMetaId = "kitsu:12", videoId = "kitsu:12:1", parentMetaType = "series")
+        runtime.playerMeta = MetaDetails(id = "kitsu:12", type = "series", name = "Anime", language = "und")
+        assertEquals("ja", runtime.contentLanguage)
+        runtime.playerMeta = runtime.playerMeta?.copy(country = "South Korea")
+        assertEquals("ko", runtime.contentLanguage)
+    }
+
+    @Test
+    fun originalSelectionSkipsCommentaryEvenWhenItIsAlreadySelected() {
+        val controller = RecordingController(listOf(
+            AudioTrack(0, "1", "Japanese Commentary", "jpn", true),
+            AudioTrack(1, "2", "English dub", "eng"),
+            AudioTrack(2, "3", "Japanese", "jpn"),
+        ))
+        val runtime = runtime(controller, contentLanguage = "ja")
+        runtime.refreshTracks()
+        runtime.refreshAudioTracksIfChanged()
+        assertEquals(listOf(2), controller.audioSelections)
+        assertEquals(2, runtime.selectedAudioIndex)
+    }
+
+    @Test
+    fun originalCommentaryOnlyFallsBackToNonCommentarySecondary() {
+        val controller = RecordingController(listOf(
+            AudioTrack(0, "1", "Japanese commentary", "jpn", true),
+            AudioTrack(1, "2", "English dub", "eng"),
+        ))
+        val runtime = runtime(controller, contentLanguage = "ja")
+        runtime.playerSettingsUiState = runtime.playerSettingsUiState.copy(secondaryPreferredAudioLanguage = "en")
+        runtime.refreshTracks()
+        assertEquals(listOf(1), controller.audioSelections)
     }
 
     private fun reportRequestedOriginalSelection(runtime: PlayerScreenRuntime, controller: RecordingController) {

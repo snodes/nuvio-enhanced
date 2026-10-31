@@ -613,10 +613,28 @@ fun countryToLanguageCode(country: String?): String? {
  * Falls back to country-based inference when the explicit language field is absent.
  */
 fun resolveContentLanguage(language: String?, country: String?): String? {
-    normalizeLanguageCode(language)?.let { return it }
+    normalizeLanguageCode(language)
+        ?.takeUnless { it in setOf("und", "unknown", "mul", "zxx") }
+        ?.let { return it }
     countryToLanguageCode(country)?.let { return it }
     return null
 }
+
+/** Anime identifiers/labels are a last resort, never an override for supplied language/country. */
+internal fun inferAnimeOriginalLanguage(
+    ids: List<String>,
+    types: List<String>,
+    genres: List<String>,
+): String? {
+    val animeId = ids.any { id ->
+        id.trim().substringBefore(':').lowercase() in setOf("kitsu", "mal", "anilist")
+    }
+    val animeLabel = (types + genres).any { it.trim().equals("anime", ignoreCase = true) }
+    return if (animeId || animeLabel) "ja" else null
+}
+
+internal fun isCommentaryAudioTrack(track: AudioTrack): Boolean =
+    Regex("(?i)\\bcommentary\\b").containsMatchIn(listOfNotNull(track.label, track.language, track.id).joinToString(" "))
 
 private val COUNTRY_TO_LANGUAGE_MAP = mapOf(
     // ISO 3166-1 alpha-2

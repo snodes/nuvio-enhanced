@@ -5,9 +5,15 @@ internal val PlayerScreenRuntime.contentLanguage: String?
         val metadata = listOfNotNull(metaUiState.meta, playerMeta).filter {
             it.id == parentMetaId && it.type == parentMetaType
         }
-        return metadata.firstNotNullOfOrNull { normalizeLanguageCode(it.language) }
-            ?: normalizeLanguageCode(args.contentLanguage)
+        return metadata.firstNotNullOfOrNull { resolveContentLanguage(it.language, null) }
+            ?: resolveContentLanguage(args.contentLanguage, null)
             ?: metadata.firstNotNullOfOrNull { countryToLanguageCode(it.country) }
+            ?: "ja".takeIf { metadata.any { it.isAnime } }
+            ?: inferAnimeOriginalLanguage(
+                ids = listOfNotNull(parentMetaId, args.videoId) + metadata.map { it.id },
+                types = listOf(parentMetaType, args.contentType.orEmpty()) + metadata.map { it.type },
+                genres = metadata.flatMap { it.genres },
+            )
     }
 
 internal val PlayerScreenRuntime.preferredAudioLanguageTargets: List<String>
@@ -32,12 +38,26 @@ internal fun PlayerScreenRuntime.applyPreferredAudioTrack(targets: List<String>)
         languages = targets,
         tracks = audioTracks.map { it.copy(isSelected = false) },
     )
+    val hasCommentary = audioTracks.any(::isCommentaryAudioTrack)
     if (appliedAudioPreferences != preferences) {
-        controller.applyAudioLanguagePreferences(targets)
+        // Native language selection cannot distinguish main audio from commentary in that language.
+        // With commentary present, clear native language ranking and select only safe candidates.
+        controller.applyAudioLanguagePreferences(if (hasCommentary) emptyList() else targets)
         appliedAudioPreferences = preferences
         preferredAudioSelectionApplied = false
     } else {
         preferredAudioSelectionApplied = true
+    }
+    if (hasCommentary) {
+        val safeTracks = audioTracks.filterNot(::isCommentaryAudioTrack)
+        val preferred = findPreferredAudioTrackIndex(safeTracks, targets)
+        val track = safeTracks.getOrNull(preferred)
+            ?: safeTracks.firstOrNull { it.isSelected }
+            ?: safeTracks.firstOrNull()
+        if (track != null && !track.isSelected) {
+            controller.selectAudioTrack(track.index)
+            selectedAudioIndex = track.index
+        }
     }
 }
 

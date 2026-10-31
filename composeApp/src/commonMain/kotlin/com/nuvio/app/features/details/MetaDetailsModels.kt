@@ -43,6 +43,7 @@ data class MetaDetails(
     val links: List<MetaLink> = emptyList(),
     val seasonPosters: Map<Int, String> = emptyMap(),
     val videos: List<MetaVideo> = emptyList(),
+    val isAnime: Boolean = false,
 )
 
 enum class MoreLikeThisSource {

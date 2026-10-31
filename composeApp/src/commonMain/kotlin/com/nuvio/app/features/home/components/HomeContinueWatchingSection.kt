@@ -265,7 +265,7 @@ internal fun ContinueWatchingItem.shouldBlurContinueWatchingArtwork(
     val thumbnail = episodeThumbnail?.trim()?.takeIf { it.isNotBlank() } ?: return false
     val artwork = artworkUrl?.trim()?.takeIf { it.isNotBlank() } ?: return false
     val isUnwatched = isNextUp || progressFraction < WatchProgressCompletionPercentThreshold / 100f
-    return isUnwatched && artwork == thumbnail
+    return isUnwatched && artwork == thumbnail && artwork != poster?.trim()
 }
 
 @Composable

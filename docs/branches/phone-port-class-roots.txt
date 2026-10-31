@@ -1,0 +1,35 @@
+Changed production roots relative to text-subs-first (package prefix com/nuvio/app/):
+core/ui/ListCardArtworkKt*
+core/ui/FullSizeArtworkUrlsKt*
+core/ui/FullSizeArtworkMapper*
+core/ui/PlatformImageLoader_iosKt*
+features/details/components/DetailSeriesContentKt*
+features/details/MetaDetails* [only MetaDetails data class changed, not other declarations in MetaDetailsModels.kt]
+features/details/MetaDetailsParser*
+features/home/components/HomeContinueWatchingSectionKt*
+features/player/PlayerLanguagePreferencesKt*
+features/player/PlayerScreenRuntimeAudioPreferencesKt*
+
+Resources: none. Documentation only: README-list-poster.md, README-phone-port.md, this inventory.
+Test roots (same prefix):
+core/ui/ListCardArtworkTest*
+core/ui/FullSizeArtworkUrlsTest*
+core/ui/FullSizeArtworkMapperTest* [Android host]
+features/details/MetaDetailsParserTest*
+features/home/components/HomeContinueWatchingArtworkTest*
+features/player/OriginalAudioPreferenceTest*
+
+Signature changes/new declarations:
+- MetaDetails: appended defaulted isAnime Boolean. Constructor, synthetic default constructor, copy/copy$default signatures change; component40/isAnime getter added. Existing component indices stay stable. Rebuild all constructor/copy callers, not only the parser.
+- Production constructor/copy caller roots: core/poster/CustomPosterOverlayKt*, features/details/MetaDetailsParser*, features/details/MetaDetailsRepository*, features/home/HomeHeroMetaRepository*, features/mdblist/MdbListMetadataService*, features/servers/mediabrowser/MediaBrowserMapper*, features/tmdb/TmdbMetadataService* (including nested/lambda classes).
+- New MetaDetails.isAnime getter caller: features/player/PlayerScreenRuntimeAudioPreferencesKt*.
+- PlayerLanguagePreferencesKt adds internal inferAnimeOriginalLanguage and isCommentaryAudioTrack; both called by PlayerScreenRuntimeAudioPreferencesKt. Existing public resolveContentLanguage signature unchanged (StreamDestinationKt and runtime callers).
+- New ListCardArtworkKt.listCardArtworkUrl called by HomeContinueWatchingSectionKt and DetailSeriesContentKt.
+- New FullSizeArtworkUrlsKt.fullSizeArtworkUrl called by FullSizeArtworkMapper; new mapper constructor/map called by PlatformImageLoader_iosKt/Coil. Existing configurePlatformImageLoader signature unchanged; caller AppKt.
+- No other public/internal existing signature changed. DetailSeriesContentKt's private EpisodeListCard adds posterImage; both callers in that same file updated (visible episode list and SeriesEpisodeListItem). CW blur helper signature unchanged.
+
+Tests directly constructing/copying MetaDetails (source files; rebuild tests together):
+androidHostTest: features/details/MetaDetailsPosterNavigationTest.kt, features/details/RatingsVisibilityTest.kt, features/player/PlayerAutoPlayTest.kt, features/shuffle/EpisodeShuffleSheetTest.kt.
+commonTest: features/details/{MetaDetailsReleaseLineTest,SeriesPlaybackResolverTest,SeriesSeasonSupportTest}.kt; features/home/HomeHeroMetaRepositoryTest.kt; features/library/LibraryRepositoryTest.kt; features/mdblist/{MdbListMobileParityTest,MdbListRatingsClientTest}.kt; features/player/OriginalAudioPreferenceTest.kt; features/servers/{FakeServerProvider,ServerTitleLookupTest,ServerUserStateProjectionTest}.kt; features/shuffle/ShuffleProjectionTest.kt; features/tmdb/TmdbMetadataServiceTest.kt; features/watched/WatchedRepositoryTest.kt; features/watchprogress/{WatchProgressIdentityTest,WatchProgressMetadataProjectionTest}.kt. Parser tests additionally read/copy the new isAnime field.
+
+Phone-only integration: these sources are not a PC overlay payload. The temporary phone-port-host desktop harness is not for deployment. No live wrapper/classes/resources changed.

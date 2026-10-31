@@ -18,6 +18,25 @@ import kotlin.test.assertTrue
 class MetaDetailsParserTest {
 
     @Test
+    fun `anime cross ids accept numeric and string addon fields`() {
+        for (key in listOf("_malId", "_kitsuId", "_anilistId", "mal_id", "kitsu_id", "anilist_id")) {
+            for (value in listOf("37521", "\"37521\"")) {
+                val meta = MetaDetailsParser.parse(
+                    """{"meta":{"id":"tt10233448","type":"series","name":"Vinland Saga","$key":$value}}""",
+                )
+                assertTrue(meta.isAnime, "$key=$value")
+                assertTrue(meta.copy(description = "Updated").isAnime)
+            }
+            for (value in listOf("null", "0", "-1", "\"\"", "\"unknown\"", "{}")) {
+                val meta = MetaDetailsParser.parse(
+                    """{"meta":{"id":"tt-live-action","type":"series","name":"Not anime","$key":$value}}""",
+                )
+                assertFalse(meta.isAnime, "$key=$value")
+            }
+        }
+    }
+
+    @Test
     fun `parse rejects null meta object without json object cast crash`() {
         assertFailsWith<IllegalStateException> {
             MetaDetailsParser.parse("""{"meta":null}""")
