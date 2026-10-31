@@ -1,0 +1,22 @@
+[
+  {
+    "id": "kitsu:49847",
+    "name": "Steel Ball Run: 1st STAGE (canonical MAL entry)",
+    "beforePoster": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/ogAWwbh3frWtiTyyXrZaVFtqCgp.jpg",
+    "beforeBackground": "https://image.tmdb.org/t/p/original/l2gc2dPRUPe3bAfYCRTjc6uAMmB.jpg",
+    "afterPoster": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx190327-riJNCFL7w9y4.jpg",
+    "afterBackground": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/190327-bXr8tFZUdxOw.jpg",
+    "malId": 61469,
+    "canonicalAniListId": 190327
+  },
+  {
+    "id": "kitsu:12",
+    "name": "ONE PIECE",
+    "beforePoster": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/uiIB9ctqZFbfRXXimtpmZb5dusi.jpg",
+    "beforeBackground": "https://image.tmdb.org/t/p/original/v38qp4bySLTXYu3MF8r5GD51FN3.jpg",
+    "afterPoster": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21-ELSYx3yMPcKM.jpg",
+    "afterBackground": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/21-wf37VakJmZqs.jpg",
+    "malId": 21,
+    "canonicalAniListId": 21
+  }
+]

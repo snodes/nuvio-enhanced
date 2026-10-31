@@ -559,12 +559,17 @@ fun HomeScreen(
     val shuffledContinueWatchingItems = remember(rawShuffledContinueWatchingItems, cwPosterPattern) {
         rawShuffledContinueWatchingItems.withCustomPosterUrls(cwPosterPattern)
     }
+    val seasonAccurateContinueWatchingItems = rememberContinueWatchingSeasonArt(
+        items = shuffledContinueWatchingItems,
+        addons = addonsUiState.addons,
+        profileId = activeProfileId,
+    )
     val (continueWatchingItems, upcomingItems) = remember(
-        shuffledContinueWatchingItems,
+        seasonAccurateContinueWatchingItems,
         continueWatchingPreferences.sortMode,
     ) {
         splitUpcomingItems(
-            items = shuffledContinueWatchingItems,
+            items = seasonAccurateContinueWatchingItems,
             mode = continueWatchingPreferences.sortMode,
         )
     }

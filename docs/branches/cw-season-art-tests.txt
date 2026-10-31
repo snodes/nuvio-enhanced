@@ -1,0 +1,7 @@
+PC: required flock Gradle --no-daemon --no-build-cache --max-workers=2 --no-configuration-cache, Xmx3g, in-process Kotlin
+:composeApp:desktopTest --tests '*HomeContinueWatchingSeasonArtTest'
+BUILD SUCCESSFUL; 7 tests, 0 failures, 0 errors, 0 skipped.
+Phone: actual phone helper/test sources compiled with Kotlin/Compose compiler, using PC model/dependency classes; JUnit OK (7 tests). Not a full iOS app build.
+Relay: python -m unittest -v; 8 tests, OK.
+Real AniList Media(idMal:61469) and Media(idMal:21) URLs recorded in cw-season-art-proof.json.
+No live app/relay restart or config writes; no app/device screenshot.
