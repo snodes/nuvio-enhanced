@@ -67,28 +67,31 @@ internal class TmdbBackdropPicker(
     suspend fun resolve(id: String, type: String, original: String?, imdbId: String? = null): String? {
         val lookup = lookup(id, type, original, imdbId) ?: return original
         val (key, mediaType, sourceId) = lookup
+        val cacheKey = lookup.cacheKey
+        // The lock guards only the cache, never the network, so cached() can always read earlier picks.
+        mutex.withLock {
+            if (cache.containsKey(cacheKey)) return cache[cacheKey] ?: original
+        }
         return try {
+            val selected = withTimeoutOrNull(5_000L) {
+                val tmdbId = if (sourceId.startsWith("tt")) {
+                    val found = Json.parseToJsonElement(get(buildTmdbUrl(
+                        "find/$sourceId", key, mapOf("external_source" to "imdb_id"),
+                    ))) as JsonObject
+                    val results = found[if (mediaType == "tv") "tv_results" else "movie_results"] as? JsonArray
+                    (results?.firstOrNull() as? JsonObject)?.get("id")?.jsonPrimitive?.intOrNull
+                        ?.takeIf { it > 0 }?.toString() ?: return@withTimeoutOrNull null
+                } else sourceId
+                val images = get(buildTmdbUrl(
+                    "$mediaType/$tmdbId/images", key, mapOf("include_image_language" to "null,xx"),
+                ))
+                largestTextlessBackdrop(images)
+            }
             mutex.withLock {
-                val cacheKey = lookup.cacheKey
-                if (cache.containsKey(cacheKey)) return@withLock cache[cacheKey] ?: original
-                val selected = withTimeoutOrNull(5_000L) {
-                    val tmdbId = if (sourceId.startsWith("tt")) {
-                        val found = Json.parseToJsonElement(get(buildTmdbUrl(
-                            "find/$sourceId", key, mapOf("external_source" to "imdb_id"),
-                        ))) as JsonObject
-                        val results = found[if (mediaType == "tv") "tv_results" else "movie_results"] as? JsonArray
-                        (results?.firstOrNull() as? JsonObject)?.get("id")?.jsonPrimitive?.intOrNull
-                            ?.takeIf { it > 0 }?.toString() ?: return@withTimeoutOrNull null
-                    } else sourceId
-                    val images = get(buildTmdbUrl(
-                        "$mediaType/$tmdbId/images", key, mapOf("include_image_language" to "null,xx"),
-                    ))
-                    largestTextlessBackdrop(images)
-                }
                 cache[cacheKey] = selected
                 if (cache.size > 256) cache.remove(cache.keys.first())
-                selected ?: original
             }
+            selected ?: original
         } catch (error: Exception) {
             if (error is CancellationException) throw error
             original
