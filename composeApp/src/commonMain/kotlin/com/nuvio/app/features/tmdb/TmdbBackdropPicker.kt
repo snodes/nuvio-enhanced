@@ -22,6 +22,9 @@ internal object TmdbBackdrops {
 
     suspend fun resolve(id: String, type: String, original: String?, imdbId: String? = null): String? =
         picker.resolve(id, type, original, imdbId)
+
+    fun cached(id: String, type: String, original: String?, imdbId: String? = null): String? =
+        picker.cached(id, type, original, imdbId)
 }
 
 internal class TmdbBackdropPicker(
@@ -31,18 +34,42 @@ internal class TmdbBackdropPicker(
     private val cache = linkedMapOf<String, String?>()
     private val mutex = Mutex()
 
-    suspend fun resolve(id: String, type: String, original: String?, imdbId: String? = null): String? {
-        val key = apiKey()
-        if (key.isBlank()) return original
-        val mediaType = TmdbService.normalizeMediaType(type)
-        if (mediaType != "movie" && mediaType != "tv") return original
+    private data class Lookup(val key: String, val mediaType: String, val sourceId: String) {
+        val cacheKey get() = "$key:$mediaType:$sourceId"
+    }
+
+    // Null when this title can't be looked up on TMDB; callers then keep the original artwork.
+    private fun lookup(id: String, type: String, original: String?, imdbId: String?): Lookup? {
+        val key = apiKey().takeIf { it.isNotBlank() } ?: return null
+        val mediaType = TmdbService.normalizeMediaType(type).takeIf { it == "movie" || it == "tv" } ?: return null
         // Do not turn unrelated custom/season artwork into franchise artwork via a details fallback ID.
         val sourceId = supportedId(id)
             ?: imdbId?.let(::supportedId)?.takeIf { original != null && isTmdbArtwork(original) }
-            ?: return original
+            ?: return null
+        return Lookup(key, mediaType, sourceId)
+    }
+
+    /**
+     * The final artwork without waiting: the earlier pick (e.g. the home hero's), or [original] when TMDB
+     * can't help. Null only when a network lookup is still needed, so screens can hold off on the
+     * lower-resolution [original] instead of flashing it before the pick arrives.
+     */
+    fun cached(id: String, type: String, original: String?, imdbId: String? = null): String? {
+        val cacheKey = lookup(id, type, original, imdbId)?.cacheKey ?: return original
+        if (!mutex.tryLock()) return null
+        return try {
+            if (cache.containsKey(cacheKey)) cache[cacheKey] ?: original else null
+        } finally {
+            mutex.unlock()
+        }
+    }
+
+    suspend fun resolve(id: String, type: String, original: String?, imdbId: String? = null): String? {
+        val lookup = lookup(id, type, original, imdbId) ?: return original
+        val (key, mediaType, sourceId) = lookup
         return try {
             mutex.withLock {
-                val cacheKey = "$key:$mediaType:$sourceId"
+                val cacheKey = lookup.cacheKey
                 if (cache.containsKey(cacheKey)) return@withLock cache[cacheKey] ?: original
                 val selected = withTimeoutOrNull(5_000L) {
                     val tmdbId = if (sourceId.startsWith("tt")) {

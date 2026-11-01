@@ -1159,17 +1159,36 @@ fun MetaDetailsScreen(
                     val contentHorizontalPadding = if (isTablet) 32.dp else 18.dp
                     val contentMaxWidth = detailTabletContentMaxWidth(maxWidth, isTablet)
                     val originalBackdrop = meta.background ?: meta.poster
-                    var selectedBackdrop by remember(meta.id, meta.type, originalBackdrop) {
-                        mutableStateOf(originalBackdrop)
+                    // Start on the home hero's earlier pick when there is one. Otherwise show no artwork
+                    // while TMDB is asked, so the lower-resolution original doesn't flash first; it only
+                    // appears if the lookup is slow, and is replaced when the pick arrives.
+                    val cachedBackdrop = remember(meta.id, meta.type, meta.imdbId, originalBackdrop) {
+                        TmdbBackdrops.cached(meta.id, meta.type, originalBackdrop, meta.imdbId)
                     }
-                    LaunchedEffect(meta.id, meta.type, meta.imdbId, originalBackdrop, deferredMetaWorkAllowed) {
-                        if (deferredMetaWorkAllowed) {
-                            selectedBackdrop = TmdbBackdrops.resolve(meta.id, meta.type, originalBackdrop, meta.imdbId)
+                    var selectedBackdrop by remember(meta.id, meta.type, meta.imdbId, originalBackdrop) {
+                        mutableStateOf(cachedBackdrop ?: originalBackdrop)
+                    }
+                    var backdropPending by remember(meta.id, meta.type, meta.imdbId, originalBackdrop) {
+                        mutableStateOf(cachedBackdrop == null && originalBackdrop != null)
+                    }
+                    LaunchedEffect(meta.id, meta.type, meta.imdbId, originalBackdrop) {
+                        if (cachedBackdrop != null) return@LaunchedEffect
+                        val slowLookup = launch {
+                            delay(1_000)
+                            backdropPending = false
                         }
+                        selectedBackdrop = TmdbBackdrops.resolve(meta.id, meta.type, originalBackdrop, meta.imdbId)
+                        slowLookup.cancel()
+                        backdropPending = false
                     }
-                    val backdropUrl = selectedBackdrop
+                    val backdropUrl = selectedBackdrop.takeUnless { backdropPending }
                     // Visible heroes and background effects must use the same selected artwork.
-                    val artworkMeta = meta.copy(background = backdropUrl)
+                    // Clearing the poster too keeps the heroes from showing it as a stand-in while pending.
+                    val artworkMeta = if (backdropPending) {
+                        meta.copy(background = null, poster = null)
+                    } else {
+                        meta.copy(background = backdropUrl)
+                    }
                     val backgroundMode = metaScreenSettingsUiState.backgroundMode
                     val dominantColorEnabled = backgroundMode == MetaScreenBackgroundMode.DominantColor &&
                         !backdropUrl.isNullOrBlank()

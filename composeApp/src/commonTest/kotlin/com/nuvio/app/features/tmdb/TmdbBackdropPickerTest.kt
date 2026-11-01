@@ -37,6 +37,20 @@ class TmdbBackdropPickerTest {
         assertTrue(requests.last().contains("/tv/1063/images?api_key=setting-key&include_image_language=null,xx"))
     }
 
+    // Details pages read this before drawing, so a known pick must come back without a fetch.
+    @Test
+    fun cachedReturnsEarlierPickWithoutWaiting() = runTest {
+        val picker = TmdbBackdropPicker({ "key" }) { images }
+        assertNull(picker.cached("tmdb:1063", "series", "addon-1080"))
+        picker.resolve("tmdb:1063", "series", "hero-original")
+        assertEquals("https://image.tmdb.org/t/p/original/winner.jpg", picker.cached("tmdb:1063", "series", "addon-1080"))
+        val noKey = TmdbBackdropPicker({ "" }) { error("must not fetch") }
+        assertEquals("addon-1080", noKey.cached("tmdb:1063", "series", "addon-1080"))
+        val noPick = TmdbBackdropPicker({ "key" }) { """{"backdrops":[]}""" }
+        noPick.resolve("tmdb:1063", "series", "hero-original")
+        assertEquals("addon-1080", noPick.cached("tmdb:1063", "series", "addon-1080"))
+    }
+
     @Test
     fun noKeyFailureAndEmptyImagesKeepOriginal() = runTest {
         val noKey = TmdbBackdropPicker({ "" }) { error("must not fetch") }

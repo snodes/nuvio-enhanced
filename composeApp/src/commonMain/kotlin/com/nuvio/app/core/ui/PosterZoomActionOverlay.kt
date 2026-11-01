@@ -454,16 +454,16 @@ fun NuvioPosterZoomActionOverlay(
                         val imageModifier = Modifier
                             .fillMaxSize()
                             .then(if (blurred) Modifier.blur(NuvioTokens.Space.s18) else Modifier)
+                        // Stays underneath: the full image cross-fades in on top, so removing the
+                        // snapshot on load would flash the empty card through the fade.
                         thumbnail?.let { snapshot ->
-                            if (!fullImageLoaded) {
-                                Image(
-                                    bitmap = snapshot,
-                                    contentDescription = null,
-                                    filterQuality = FilterQuality.High,
-                                    modifier = imageModifier,
-                                    contentScale = ContentScale.Crop,
-                                )
-                            }
+                            Image(
+                                bitmap = snapshot,
+                                contentDescription = null,
+                                filterQuality = FilterQuality.High,
+                                modifier = imageModifier,
+                                contentScale = ContentScale.Crop,
+                            )
                         }
                         AsyncImage(
                             model = previewRequest,
