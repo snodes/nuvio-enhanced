@@ -15,7 +15,8 @@ import kotlinx.serialization.json.jsonPrimitive
 /** Artwork-only lookup: independent of enrichment and never changes season metadata. */
 internal object TmdbBackdrops {
     private val picker = TmdbBackdropPicker(
-        apiKey = { TmdbSettingsRepository.snapshot().apiKey.trim() },
+        // The typed-in key, else the build's own TMDB key (phones usually have no typed key).
+        apiKey = { TmdbSettingsRepository.effectiveApiKey().trim() },
         get = ::httpGetText,
     )
 

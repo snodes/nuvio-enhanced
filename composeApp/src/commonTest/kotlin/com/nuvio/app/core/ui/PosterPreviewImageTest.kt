@@ -6,22 +6,22 @@ import kotlin.test.assertNull
 
 class PosterPreviewImageTest {
     @Test
-    fun upgradesTmdbThumbnailsAndPreservesTheArtworkAndQuery() {
-        for (size in listOf(92, 154, 185, 342, 500)) {
+    fun loadsOriginalTmdbPosterAndPreservesTheArtworkAndQuery() {
+        for (size in listOf("w92", "w185", "w500", "w780", "w600_and_h900_bestv2")) {
             assertEquals(
-                "https://image.tmdb.org/t/p/w780/frieren.jpg?language=en#poster",
-                posterPreviewImageUrl("https://image.tmdb.org/t/p/w$size/frieren.jpg?language=en#poster"),
+                "https://image.tmdb.org/t/p/original/frieren.jpg?language=en#poster",
+                posterPreviewImageUrl("https://image.tmdb.org/t/p/$size/frieren.jpg?language=en#poster"),
             )
         }
         assertEquals(
-            "http://image.tmdb.org/t/p/w780/poster.png",
+            "http://image.tmdb.org/t/p/original/poster.png",
             posterPreviewImageUrl("http://image.tmdb.org/t/p/w185/poster.png"),
         )
     }
 
     @Test
-    fun preservesLargeAndOriginalTmdbImages() {
-        for (size in listOf("w780", "w1280", "original")) {
+    fun preservesOriginalTmdbImages() {
+        for (size in listOf("original")) {
             val url = "https://image.tmdb.org/t/p/$size/frieren.jpg"
             assertEquals(url, posterPreviewImageUrl(url))
         }
