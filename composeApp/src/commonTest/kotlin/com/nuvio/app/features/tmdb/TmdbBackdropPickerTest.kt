@@ -25,14 +25,8 @@ class TmdbBackdropPickerTest {
         {"file_path":"/english.svg","iso_639_1":"en","vote_average":8.0,"vote_count":9},
         {"file_path":"/english.png","iso_639_1":"en","vote_average":5.0,"vote_count":3}
     ]"""
-    private val details = """{"id":1063,"external_ids":{"tvdb_id":267440},
+    private val details = """{"id":1063,
         "images":{"backdrops":$backdrops,"posters":$posters,"logos":$logos}}"""
-    private val fanart = """{"hdtvlogo":[
-        {"lang":"fr","likes":"50","url":"https://fanart.example/fr.png"},
-        {"lang":"en","likes":"18","url":"https://fanart.example/en-best.png"},
-        {"lang":"en","likes":"2","url":"https://fanart.example/en-other.png"}
-    ]}"""
-
     @Test
     fun largestTextlessWinsThenVoteCount() {
         assertEquals("https://image.tmdb.org/t/p/original/winner.jpg", largestTextlessBackdrop("""{"backdrops":$backdrops}"""))
@@ -41,30 +35,14 @@ class TmdbBackdropPickerTest {
     }
 
     @Test
-    fun oneLookupPicksBackdropTallArtAndFanartEnglishLogo() = runTest {
+    fun oneLookupPicksBackdropTallArtAndEnglishPngLogo() = runTest {
         val requests = mutableListOf<String>()
-        val picker = TmdbBackdropPicker({ "key" }, { "fan" }) { url ->
-            requests += url
-            if ("fanart" in url) fanart else details
-        }
+        val picker = TmdbBackdropPicker({ "key" }) { url -> requests += url; details }
         val artwork = picker.artwork("tmdb:1063", "series", "before")
         assertEquals("https://image.tmdb.org/t/p/original/winner.jpg", artwork.backdrop)
         assertEquals("https://image.tmdb.org/t/p/original/key_art.jpg", artwork.tallArt)
-        assertEquals("https://fanart.example/en-best.png", artwork.logo)
-        assertTrue(requests[0].contains("/tv/1063?api_key=key&append_to_response=images,external_ids&include_image_language=en,null,xx"))
-        assertEquals("https://webservice.fanart.tv/v3/tv/267440?api_key=fan", requests[1])
-    }
-
-    @Test
-    fun tmdbEnglishPngLogoWhenFanartHasNone() = runTest {
-        val noFanartKey = TmdbBackdropPicker({ "key" }) { url ->
-            if ("fanart" in url) error("must not fetch") else details
-        }
-        assertEquals("https://image.tmdb.org/t/p/original/english.png", noFanartKey.artwork("tmdb:1063", "series", "x").logo)
-        val fanartMissing = TmdbBackdropPicker({ "key" }, { "fan" }) { url ->
-            if ("fanart" in url) error("404 Not Found") else details
-        }
-        assertEquals("https://image.tmdb.org/t/p/original/english.png", fanartMissing.artwork("tmdb:1063", "series", "x").logo)
+        assertEquals("https://image.tmdb.org/t/p/original/english.png", artwork.logo)
+        assertEquals(listOf("https://api.themoviedb.org/3/tv/1063?api_key=key&append_to_response=images&include_image_language=en,null,xx"), requests)
     }
 
     @Test

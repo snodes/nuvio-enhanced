@@ -16,7 +16,7 @@ import kotlinx.serialization.json.jsonPrimitive
 /**
  * Artwork picked for one title; any field is null when no source has it.
  * [tallArt] is textless portrait key art for tall phone heroes, only when it is at least as sharp there
- * as a 4K backdrop. [logo] is always English: Fanart.tv's most-liked, else TMDB's best.
+ * as a 4K backdrop. [logo] is TMDB's best English logo (the addon's can be any language).
  */
 internal data class TitleArtwork(
     val backdrop: String? = null,
@@ -24,12 +24,15 @@ internal data class TitleArtwork(
     val logo: String? = null,
 )
 
+/** [logo] unless the TMDB setting shows titles in their original language; then the addon's logo stays. */
+internal fun englishLogo(logo: String?): String? =
+    logo?.takeUnless { TmdbSettingsRepository.snapshot().let { it.enabled && it.titleLanguage == TmdbTitleLanguage.ORIGINAL } }
+
 /** Artwork-only lookup: independent of enrichment and never changes season metadata. */
 internal object TmdbBackdrops {
     private val picker = TmdbBackdropPicker(
         // The typed-in key, else the build's own TMDB key (phones usually have no typed key).
         apiKey = { TmdbSettingsRepository.effectiveApiKey().trim() },
-        fanartKey = { TmdbConfig.FANART_API_KEY.trim() },
         get = ::httpGetText,
     )
 
@@ -42,7 +45,6 @@ internal object TmdbBackdrops {
 
 internal class TmdbBackdropPicker(
     private val apiKey: () -> String,
-    private val fanartKey: () -> String = { "" },
     private val get: suspend (String) -> String,
 ) {
     private val cache = linkedMapOf<String, TitleArtwork>()
@@ -106,36 +108,19 @@ internal class TmdbBackdropPicker(
             (results?.firstOrNull() as? JsonObject)?.get("id")?.jsonPrimitive?.intOrNull
                 ?.takeIf { it > 0 }?.toString() ?: return null
         } else sourceId
-        // One request: textless backdrops and posters, English logos, and the TVDB id Fanart.tv needs.
+        // One request: textless backdrops and posters plus English logos.
         val details = Json.parseToJsonElement(get(buildTmdbUrl(
             "$mediaType/$tmdbId", key,
-            mapOf("append_to_response" to "images,external_ids", "include_image_language" to "en,null,xx"),
+            mapOf("append_to_response" to "images", "include_image_language" to "en,null,xx"),
         ))) as JsonObject
         val images = details["images"] as? JsonObject ?: JsonObject(emptyMap())
-        val fanartUrl = fanartKey().takeIf { it.isNotBlank() }?.let { fanart ->
-            if (mediaType == "movie") {
-                "https://webservice.fanart.tv/v3/movies/$tmdbId?api_key=$fanart"
-            } else {
-                (details["external_ids"] as? JsonObject)?.get("tvdb_id")?.jsonPrimitive?.intOrNull
-                    ?.takeIf { it > 0 }
-                    ?.let { "https://webservice.fanart.tv/v3/tv/$it?api_key=$fanart" }
-            }
-        }
         val tallArt = largestTextless(images, "posters")
             ?.takeIf { it.width >= TALL_ART_MIN_WIDTH && it.height > it.width }
         return TitleArtwork(
             backdrop = largestTextless(images, "backdrops")?.url,
             tallArt = tallArt?.url,
-            logo = fanartUrl?.let { fanartEnglishLogo(it) } ?: tmdbEnglishLogo(images),
+            logo = tmdbEnglishLogo(images),
         )
-    }
-
-    // Fanart.tv answers 404 for titles it doesn't know; any failure just means "no Fanart logo".
-    private suspend fun fanartEnglishLogo(url: String): String? = try {
-        fanartEnglishLogoFrom(get(url))
-    } catch (error: Exception) {
-        if (error is CancellationException) throw error
-        null
     }
 
     private fun supportedId(id: String): String? {
@@ -183,18 +168,6 @@ internal fun tmdbEnglishLogo(images: JsonObject): String? =
         .maxWithOrNull(compareBy<JsonObject> { it["vote_average"]?.jsonPrimitive?.doubleOrNull ?: 0.0 }
             .thenBy { it.int("vote_count") })
         ?.let { "https://image.tmdb.org/t/p/original${it.path()}" }
-
-/** Fanart.tv's most-liked English logo; HD logos first, then the older small ones. */
-internal fun fanartEnglishLogoFrom(body: String): String? {
-    val root = Json.parseToJsonElement(body) as? JsonObject ?: return null
-    return listOf("hdtvlogo", "hdmovielogo", "clearlogo", "movielogo").firstNotNullOfOrNull { kind ->
-        (root[kind] as? JsonArray).orEmpty()
-            .mapNotNull { it as? JsonObject }
-            .filter { it["lang"]?.jsonPrimitive?.contentOrNull == "en" }
-            .maxByOrNull { it["likes"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0 }
-            ?.get("url")?.jsonPrimitive?.contentOrNull
-    }
-}
 
 private fun isTmdbArtwork(url: String): Boolean =
     url.startsWith("https://image.tmdb.org/t/p/") || url.startsWith("http://image.tmdb.org/t/p/")

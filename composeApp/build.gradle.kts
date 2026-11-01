@@ -46,9 +46,6 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
     @get:Input
     abstract val tmdbApiKey: Property<String>
 
-    @get:Input
-    abstract val fanartApiKey: Property<String>
-
     @TaskAction
     fun generate() {
         val props = Properties()
@@ -92,8 +89,6 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 |
                 |object TmdbConfig {
                 |    const val API_KEY = "${tmdbApiKey.get()}"
-                |    // Fanart.tv personal key for English title logos; blank skips Fanart.tv (TMDB logos only).
-                |    const val FANART_API_KEY = "${fanartApiKey.get()}"
                 |}
                 """.trimMargin()
             )
@@ -331,7 +326,6 @@ val generateRuntimeConfigs = tasks.register<GenerateRuntimeConfigsTask>("generat
     supabaseFallbackUrl.set(runtimeConfigValue("NUVIO_SUPABASE_FALLBACK_URL"))
     sentryDsn.set(runtimeConfigValue("SENTRY_DSN"))
     tmdbApiKey.set(runtimeConfigValue("TMDB_API_KEY"))
-    fanartApiKey.set(runtimeConfigValue("FANART_API_KEY"))
     sentryEnvironment.set(
         when {
             requestedGradleTasks.any { "benchmark" in it } -> "benchmark"

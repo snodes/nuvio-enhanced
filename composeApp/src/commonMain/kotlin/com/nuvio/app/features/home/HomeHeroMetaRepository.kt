@@ -15,6 +15,7 @@ import com.nuvio.app.features.mdblist.MdbListSettings
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
 import com.nuvio.app.features.tmdb.TitleArtwork
 import com.nuvio.app.features.tmdb.TmdbBackdrops
+import com.nuvio.app.features.tmdb.englishLogo
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -129,7 +130,7 @@ internal fun MetaPreview.withHeroMeta(meta: HomeHeroMeta): MetaPreview {
         banner = meta.artwork?.backdrop ?: banner,
         heroTallArt = meta.artwork?.tallArt,
         name = details?.name?.takeIf { useOriginalTitle && it.isNotBlank() } ?: name,
-        logo = details?.logo?.takeIf { useOriginalTitle && it.isNotBlank() } ?: meta.artwork?.logo ?: logo,
+        logo = details?.logo?.takeIf { useOriginalTitle && it.isNotBlank() } ?: englishLogo(meta.artwork?.logo) ?: logo,
         genres = details?.genres?.takeIf { it.isNotEmpty() } ?: genres,
         imdbRating = details?.imdbRating?.takeIf { it.isNotBlank() } ?: imdbRating,
         runtime = details?.runtime?.takeIf { it.isNotBlank() } ?: runtime,

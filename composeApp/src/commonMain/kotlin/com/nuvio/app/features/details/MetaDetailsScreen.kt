@@ -1,6 +1,7 @@
 package com.nuvio.app.features.details
 
 import com.nuvio.app.features.tmdb.TmdbBackdrops
+import com.nuvio.app.features.tmdb.englishLogo
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.Crossfade
@@ -1183,12 +1184,12 @@ fun MetaDetailsScreen(
                     }
                     val backdropUrl = (artwork?.backdrop ?: originalBackdrop).takeUnless { backdropPending }
                     // Visible heroes and background effects must use the same selected artwork, and the
-                    // English logo (the addon's can be any language). Clearing the poster too keeps the
+                    // English logo (the addon's can be any language) unless titles are set to their original language. Clearing the poster too keeps the
                     // heroes from showing it as a stand-in while pending.
                     val artworkMeta = if (backdropPending) {
                         meta.copy(background = null, poster = null)
                     } else {
-                        meta.copy(background = backdropUrl, logo = artwork?.logo ?: meta.logo)
+                        meta.copy(background = backdropUrl, logo = englishLogo(artwork?.logo) ?: meta.logo)
                     }
                     val backgroundMode = metaScreenSettingsUiState.backgroundMode
                     val dominantColorEnabled = backgroundMode == MetaScreenBackgroundMode.DominantColor &&
