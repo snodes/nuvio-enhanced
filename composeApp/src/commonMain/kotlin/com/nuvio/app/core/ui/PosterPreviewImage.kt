@@ -9,3 +9,7 @@ internal fun posterPreviewImageUrl(imageUrl: String?): String? = imageUrl?.let {
 }
 
 private val tmdbThumbnailSize = Regex("^(https?://image\\.tmdb\\.org/t/p/)w([0-9]+)/")
+
+// Decode bound for the preview poster: about the preview's size on a 3x screen, 2:3 aspect.
+internal const val PosterPreviewDecodeWidthPx = 1080
+internal const val PosterPreviewDecodeHeightPx = 1620

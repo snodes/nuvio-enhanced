@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,7 +44,6 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -62,7 +62,6 @@ import androidx.compose.ui.unit.min
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
-import coil3.size.Size
 import com.kyant.backdrop.Backdrop
 import com.nuvio.app.core.ui.glass.liquidGlassBlur
 import kotlinx.coroutines.coroutineScope
@@ -167,17 +166,18 @@ fun NuvioPosterZoomActionOverlay(
     val previewRequest = remember(context, imageUrl) {
         ImageRequest.Builder(context)
             .data(posterPreviewImageUrl(imageUrl))
-            // Decode the large image independently of the shelf's thumbnail request.
-            .size(Size.ORIGINAL)
+            // Decode the large image independently of the shelf's thumbnail request,
+            // bounded to roughly the preview's size on a 3x screen (2:3 poster).
+            .size(PosterPreviewDecodeWidthPx, PosterPreviewDecodeHeightPx)
             .build()
     }
     var thumbnail by remember(source) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(source) {
         if (source?.canLift == true) thumbnail = source.layer.toImageBitmap()
     }
-    val placeholder = remember(thumbnail) {
-        thumbnail?.let { BitmapPainter(it, filterQuality = FilterQuality.High) }
-    }
+    // The grid snapshot (which already includes the watched badge) shows under the
+    // full image until that loads; the separate badge is drawn only after.
+    var fullImageLoaded by remember(imageUrl) { mutableStateOf(false) }
 
     // A context menu shows a snapshot of the moment it was invoked; don't let
     // repository updates mid-animation relabel or reorder the rows.
@@ -451,15 +451,26 @@ fun NuvioPosterZoomActionOverlay(
                     contentAlignment = Alignment.Center,
                 ) {
                     if (imageUrl != null) {
+                        val imageModifier = Modifier
+                            .fillMaxSize()
+                            .then(if (blurred) Modifier.blur(NuvioTokens.Space.s18) else Modifier)
+                        thumbnail?.let { snapshot ->
+                            if (!fullImageLoaded) {
+                                Image(
+                                    bitmap = snapshot,
+                                    contentDescription = null,
+                                    filterQuality = FilterQuality.High,
+                                    modifier = imageModifier,
+                                    contentScale = ContentScale.Crop,
+                                )
+                            }
+                        }
                         AsyncImage(
                             model = previewRequest,
-                            placeholder = placeholder,
-                            error = placeholder,
                             filterQuality = FilterQuality.High,
                             contentDescription = title,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .then(if (blurred) Modifier.blur(NuvioTokens.Space.s18) else Modifier),
+                            onSuccess = { fullImageLoaded = true },
+                            modifier = imageModifier,
                             contentScale = ContentScale.Crop,
                         )
                     } else {
@@ -474,7 +485,7 @@ fun NuvioPosterZoomActionOverlay(
                         )
                     }
                     NuvioPosterWatchedOverlay(
-                        isWatched = isWatched,
+                        isWatched = isWatched && (fullImageLoaded || thumbnail == null),
                         modifier = Modifier.graphicsLayer {
                             val slot = slotBounds
                             if (slot != null && slot.width > 0f) {

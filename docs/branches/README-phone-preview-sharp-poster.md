@@ -4,7 +4,7 @@
 
 - Replace the permanently enlarged shelf layer in the context-menu preview with a separately decoded poster.
 - Promote TMDB thumbnails to w780, preserve larger/original images and other addon URLs, and use smooth image filtering.
-- Use a smoothly filtered snapshot of the shelf only while the preview image loads, retaining the existing lift and return animation.
+- Draw a smoothly filtered snapshot of the shelf under the preview image until it loads (the snapshot already carries the watched badge, so the separate badge waits for the full image). Decoding is bounded to 1080x1620. Lift and return animation unchanged.
 - Add focused shared URL tests. Linux validation results are recorded below.
 
 ## Validation
