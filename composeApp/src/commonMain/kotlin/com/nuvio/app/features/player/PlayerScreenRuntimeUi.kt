@@ -531,6 +531,15 @@ private fun PlayerScreenRuntime.RenderPlayerControls(
                 showSpeedPanel = false
                 controlsActivityTick += 1
             },
+            nightModeEnabled = playerSettingsUiState.nightModeEnabled,
+            onNightModeClick = if (
+                playerSettingsUiState.nightModeButtonEnabled && playerController?.supportsNightMode == true
+            ) {
+                {
+                    PlayerSettingsRepository.setNightModeEnabled(!PlayerSettingsRepository.uiState.value.nightModeEnabled)
+                    controlsActivityTick += 1
+                }
+            } else null,
             onSubtitleClick = if (!isLiveTvPlayback) {
                 {
                     refreshTracks()

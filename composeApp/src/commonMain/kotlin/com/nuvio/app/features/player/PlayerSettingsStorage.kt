@@ -23,10 +23,16 @@ internal expect object PlayerSettingsStorage {
     fun saveHoldToSpeedValue(speed: Float)
     fun loadSkipBackwardSeconds(): Int?
     fun saveSkipBackwardSeconds(seconds: Int)
+    fun loadSkipIntroOffsetSeconds(): Int?
+    fun saveSkipIntroOffsetSeconds(seconds: Int)
     fun loadSkipForwardSeconds(): Int?
     fun saveSkipForwardSeconds(seconds: Int)
     fun loadToolbarLayout(): String?
     fun saveToolbarLayout(layout: String)
+    fun loadLegacyBottomButtons(): String?
+    fun saveLegacyBottomButtons(layout: String)
+    fun loadLegacyTopButtons(): String?
+    fun saveLegacyTopButtons(layout: String)
     fun loadTouchGesturesEnabled(): Boolean?
     fun saveTouchGesturesEnabled(enabled: Boolean)
     fun loadSwipeToSeekEnabled(): Boolean?
@@ -105,6 +111,10 @@ internal expect object PlayerSettingsStorage {
     fun saveTunnelingEnabled(enabled: Boolean)
     fun loadAndroidAudioPassthroughEnabled(): Boolean?
     fun saveAndroidAudioPassthroughEnabled(enabled: Boolean)
+    fun loadNightModeButtonEnabled(): Boolean?
+    fun saveNightModeButtonEnabled(enabled: Boolean)
+    fun loadNightModeEnabled(): Boolean?
+    fun saveNightModeEnabled(enabled: Boolean)
     fun loadExoNativeMemoryEnabled(): Boolean?
     fun saveExoNativeMemoryEnabled(value: Boolean)
     fun loadCustomPlaybackBuffersEnabled(): Boolean?

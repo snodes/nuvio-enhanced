@@ -29,7 +29,10 @@ actual object PlayerSettingsStorage {
     private const val holdToSpeedEnabledKey = "hold_to_speed_enabled"
     private const val holdToSpeedValueKey = "hold_to_speed_value"
     private const val skipBackwardSecondsKey = "skip_backward_seconds"
+    private const val skipIntroOffsetSecondsKey = "skip_intro_offset_seconds"
     private const val toolbarLayoutKey = "player_toolbar_layout"
+    private const val legacyBottomButtonsKey = "legacy_player_bottom_buttons"
+    private const val legacyTopButtonsKey = "legacy_player_top_buttons"
     private const val skipForwardSecondsKey = "skip_forward_seconds"
     private const val touchGesturesEnabledKey = "touch_gestures_enabled"
     private const val swipeToSeekEnabledKey = "swipe_to_seek_enabled"
@@ -70,6 +73,8 @@ actual object PlayerSettingsStorage {
     private const val mapDV7ToHevcKey = "map_dv7_to_hevc"
     private const val tunnelingEnabledKey = "tunneling_enabled"
     private const val androidAudioPassthroughEnabledKey = "android_audio_passthrough_enabled"
+    private const val nightModeButtonEnabledKey = "night_mode_button_enabled"
+    private const val nightModeEnabledKey = "night_mode_enabled"
     private const val exoNativeMemoryEnabledKey = "exo_native_memory_enabled"
     private const val customPlaybackBuffersEnabledKey = "custom_playback_buffers_enabled"
     private const val vodDiskCacheEnabledKey = "vod_disk_cache_enabled"
@@ -354,9 +359,27 @@ actual object PlayerSettingsStorage {
         preferences?.edit()?.putString(ProfileScopedKey.of(toolbarLayoutKey), layout)?.apply()
     }
 
+    actual fun loadLegacyBottomButtons(): String? =
+        preferences?.getString(ProfileScopedKey.of(legacyBottomButtonsKey), null)
+
+    actual fun saveLegacyBottomButtons(layout: String) {
+        preferences?.edit()?.putString(ProfileScopedKey.of(legacyBottomButtonsKey), layout)?.apply()
+    }
+
+    actual fun loadLegacyTopButtons(): String? =
+        preferences?.getString(ProfileScopedKey.of(legacyTopButtonsKey), null)
+
+    actual fun saveLegacyTopButtons(layout: String) {
+        preferences?.edit()?.putString(ProfileScopedKey.of(legacyTopButtonsKey), layout)?.apply()
+    }
+
     actual fun loadSkipBackwardSeconds(): Int? = loadLocalInt(skipBackwardSecondsKey)
 
     actual fun saveSkipBackwardSeconds(seconds: Int) = saveLocalInt(skipBackwardSecondsKey, seconds)
+
+    actual fun loadSkipIntroOffsetSeconds(): Int? = loadLocalInt(skipIntroOffsetSecondsKey)
+
+    actual fun saveSkipIntroOffsetSeconds(seconds: Int) = saveLocalInt(skipIntroOffsetSecondsKey, seconds)
 
     actual fun loadSkipForwardSeconds(): Int? = loadLocalInt(skipForwardSecondsKey)
 
@@ -932,6 +955,40 @@ actual object PlayerSettingsStorage {
         preferences
             ?.edit()
             ?.putBoolean(ProfileScopedKey.of(androidAudioPassthroughEnabledKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadNightModeButtonEnabled(): Boolean? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(nightModeButtonEnabledKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getBoolean(key, true)
+            } else {
+                null
+            }
+        }
+
+    actual fun saveNightModeButtonEnabled(enabled: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(nightModeButtonEnabledKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadNightModeEnabled(): Boolean? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(nightModeEnabledKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getBoolean(key, false)
+            } else {
+                null
+            }
+        }
+
+    actual fun saveNightModeEnabled(enabled: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(nightModeEnabledKey), enabled)
             ?.apply()
     }
 

@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import com.nuvio.app.features.player.SKIP_INTRO_OFFSET_MAX_SECONDS
+import com.nuvio.app.features.player.SKIP_INTRO_OFFSET_SLIDER_SECONDS
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -70,6 +73,7 @@ import com.nuvio.app.features.player.IosTargetPrimaries
 import com.nuvio.app.features.player.IosTargetTransfer
 import com.nuvio.app.features.player.PlaybackMemoryInfo
 import com.nuvio.app.features.player.safeBufferLimitMb
+import com.nuvio.app.features.player.LegacyPlayerButtonLayouts
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.STREAM_AUTO_PLAY_TIMEOUT_VALUES
 import com.nuvio.app.features.player.SubtitleBackgroundColorSwatches
@@ -366,7 +370,10 @@ private fun PlaybackSettingsSection(
     var showDecoderPriorityDialog by remember { mutableStateOf(false) }
     var showHoldToSpeedValueDialog by remember { mutableStateOf(false) }
     var skipDirectionDialog by remember { mutableStateOf<Boolean?>(null) } // true = forward
+    var showSkipIntroOffsetDialog by remember { mutableStateOf(false) }
     var showToolbarLayoutDialog by remember { mutableStateOf(false) }
+    var showLegacyBottomButtonsDialog by remember { mutableStateOf(false) }
+    var showLegacyTopButtonsDialog by remember { mutableStateOf(false) }
     var showIosAudioOutputDialog by remember { mutableStateOf(false) }
     var showIosHardwareDecoderDialog by remember { mutableStateOf(false) }
     var showIosTargetPrimariesDialog by remember { mutableStateOf(false) }
@@ -426,6 +433,21 @@ private fun PlaybackSettingsSection(
                         description = stringResource(Res.string.settings_playback_toolbar_layout_description),
                         isTablet = isTablet,
                         onClick = { showToolbarLayoutDialog = true },
+                    )
+                } else {
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.settings_playback_legacy_top_buttons),
+                        description = stringResource(Res.string.settings_playback_legacy_top_buttons_description),
+                        isTablet = isTablet,
+                        onClick = { showLegacyTopButtonsDialog = true },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.settings_playback_legacy_bottom_buttons),
+                        description = stringResource(Res.string.settings_playback_legacy_bottom_buttons_description),
+                        isTablet = isTablet,
+                        onClick = { showLegacyBottomButtonsDialog = true },
                     )
                 }
                 SettingsGroupDivider(isTablet = isTablet)
@@ -645,6 +667,15 @@ private fun PlaybackSettingsSection(
                     onClick = { showSecondaryAudioDialog = true },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_night_mode_button),
+                    description = stringResource(Res.string.settings_playback_night_mode_button_description),
+                    checked = autoPlayPlayerSettings.nightModeButtonEnabled,
+                    enabled = !autoPlayPlayerSettings.externalPlayerEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setNightModeButtonEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(
                     title = stringResource(Res.string.settings_playback_preferred_subtitle_language),
                     description = when (preferredSubtitleLanguage) {
@@ -745,7 +776,7 @@ private fun PlaybackSettingsSection(
                     value = subtitleStyle.fontSizeSp,
                     formatValue = { stringResource(Res.string.compose_player_font_size_value, it) },
                     valueRange = subtitleFontSizeRangeSp,
-                    step = 2,
+                    step = 1,
                     isTablet = isTablet,
                     enabled = subtitleRenderingEnabled,
                     onValueChange = { value ->
@@ -1410,6 +1441,14 @@ private fun PlaybackSettingsSection(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(
+                    title = stringResource(Res.string.settings_playback_skip_intro_offset),
+                    description = skipIntroOffsetLabel(autoPlayPlayerSettings.skipIntroOffsetSeconds),
+                    enabled = autoPlayPlayerSettings.skipIntroEnabled && !autoPlayPlayerSettings.externalPlayerEnabled,
+                    isTablet = isTablet,
+                    onClick = { showSkipIntroOffsetDialog = true },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
                     title = stringResource(Res.string.settings_playback_auto_skip_segments),
                     description = autoSkipSelectionSummary(autoPlayPlayerSettings.autoSkipSegmentTypes),
                     enabled = autoPlayPlayerSettings.skipIntroEnabled && !autoPlayPlayerSettings.externalPlayerEnabled,
@@ -1917,6 +1956,39 @@ private fun PlaybackSettingsSection(
             layout = autoPlayPlayerSettings.toolbarLayout,
             onLayoutChange = PlayerSettingsRepository::setToolbarLayout,
             onDismiss = { showToolbarLayoutDialog = false },
+        )
+    }
+
+    if (showLegacyTopButtonsDialog) {
+        LegacyPlayerButtonsSettingsDialog(
+            title = stringResource(Res.string.settings_playback_legacy_top_buttons),
+            layout = autoPlayPlayerSettings.legacyTopButtons,
+            defaultLayout = LegacyPlayerButtonLayouts.DefaultTop,
+            label = { it.labelRes },
+            onLayoutChange = PlayerSettingsRepository::setLegacyTopButtons,
+            onDismiss = { showLegacyTopButtonsDialog = false },
+        )
+    }
+
+    if (showLegacyBottomButtonsDialog) {
+        LegacyPlayerButtonsSettingsDialog(
+            title = stringResource(Res.string.settings_playback_legacy_bottom_buttons),
+            layout = autoPlayPlayerSettings.legacyBottomButtons,
+            defaultLayout = LegacyPlayerButtonLayouts.DefaultBottom,
+            label = { it.labelRes },
+            onLayoutChange = PlayerSettingsRepository::setLegacyBottomButtons,
+            onDismiss = { showLegacyBottomButtonsDialog = false },
+        )
+    }
+
+    if (showSkipIntroOffsetDialog) {
+        SkipIntroOffsetDialog(
+            selectedSeconds = autoPlayPlayerSettings.skipIntroOffsetSeconds,
+            onSelected = { seconds ->
+                PlayerSettingsRepository.setSkipIntroOffsetSeconds(seconds)
+                showSkipIntroOffsetDialog = false
+            },
+            onDismiss = { showSkipIntroOffsetDialog = false },
         )
     }
 
@@ -3210,6 +3282,128 @@ private val com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.labelRes
         com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.MINUTES_BEFORE_END ->
             Res.string.settings_playback_threshold_mode_minutes_before_end
     }
+
+@Composable
+private fun skipIntroOffsetLabel(seconds: Int): String = when {
+    seconds < 0 -> stringResource(Res.string.settings_playback_skip_intro_offset_earlier, -seconds)
+    seconds > 0 -> stringResource(Res.string.settings_playback_skip_intro_offset_later, seconds)
+    else -> stringResource(Res.string.settings_playback_skip_intro_offset_on_time)
+}
+
+@Composable
+private fun SkipIntroOffsetDialog(
+    selectedSeconds: Int,
+    onSelected: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var seconds by remember { mutableStateOf(selectedSeconds) }
+    var input by remember { mutableStateOf(selectedSeconds.toString()) }
+    val sliderRange = SKIP_INTRO_OFFSET_SLIDER_SECONDS.toFloat()
+
+    fun update(value: Int, fromInput: Boolean = false) {
+        seconds = value.coerceIn(-SKIP_INTRO_OFFSET_MAX_SECONDS, SKIP_INTRO_OFFSET_MAX_SECONDS)
+        if (!fromInput) input = seconds.toString()
+    }
+
+    DialogSurface(
+        onDismissRequest = onDismiss,
+        title = stringResource(Res.string.settings_playback_skip_intro_offset),
+        message = stringResource(Res.string.settings_playback_skip_intro_offset_description),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = skipIntroOffsetLabel(seconds),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+            Slider(
+                value = seconds.toFloat().coerceIn(-sliderRange, sliderRange),
+                onValueChange = { update(it.roundToInt()) },
+                valueRange = -sliderRange..sliderRange,
+                steps = SKIP_INTRO_OFFSET_SLIDER_SECONDS * 2 - 1,
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = stringResource(Res.string.settings_playback_skip_intro_offset_earlier, SKIP_INTRO_OFFSET_SLIDER_SECONDS),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(Res.string.settings_playback_skip_intro_offset_later, SKIP_INTRO_OFFSET_SLIDER_SECONDS),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(Res.string.settings_playback_skip_intro_offset_input),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                ) {
+                    BasicTextField(
+                        value = input,
+                        onValueChange = { text ->
+                            val filtered = text.filterIndexed { index, c -> c.isDigit() || (c == '-' && index == 0) }.take(4)
+                            input = filtered
+                            filtered.toIntOrNull()?.let { update(it, fromInput = true) }
+                        },
+                        modifier = Modifier
+                            .width(80.dp)
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                    )
+                }
+                Text(
+                    text = stringResource(Res.string.settings_playback_skip_intro_offset_unit),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        DialogButtons {
+            DialogButton(
+                text = stringResource(Res.string.action_reset),
+                onClick = { update(0) },
+            )
+            DialogButton(
+                text = stringResource(Res.string.action_cancel),
+                onClick = onDismiss,
+            )
+            DialogButton(
+                text = stringResource(Res.string.action_save),
+                onClick = { onSelected(seconds) },
+                style = DialogButtonStyle.Primary,
+            )
+        }
+    }
+}
 
 @Composable
 private fun SkipSecondsDialog(

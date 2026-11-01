@@ -95,6 +95,9 @@ actual fun PlatformPlayerSurface(
             override val keepsPlaybackInBackground: Boolean
                 get() = bridge.getKeepsPlaybackInBackground()
 
+            override val supportsNightMode: Boolean
+                get() = bridge.isNightModeSupported()
+
             override fun setSystemControlHandler(handler: PlayerSystemControlHandler?) {
                 bridge.setSystemControlHandler(handler)
             }
@@ -436,6 +439,15 @@ actual fun PlatformPlayerSurface(
 
     LaunchedEffect(bridge, playerSettings) {
         bridge.applyIosVideoOutputSettings(playerSettings)
+    }
+
+    val nightModeActive = playerSettings.nightModeActive
+    LaunchedEffect(bridge, nightModeActive) {
+        bridge.setNightMode(
+            enabled = nightModeActive,
+            filter = PlayerNightMode.MPV_FILTER,
+            label = PlayerNightMode.MPV_FILTER_LABEL,
+        )
     }
 
     // Polling for snapshots

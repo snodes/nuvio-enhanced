@@ -3,6 +3,7 @@ import UIKit
 import AVFoundation
 import Metal
 import Libmpv
+import Libavfilter
 import ComposeApp
 
 // MARK: - Player Bridge Implementation (Kotlin protocol conformance)
@@ -130,6 +131,10 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     }
     func configureAudioOutput(audioOutput: String) {
         playerVC?.configureAudioOutput(audioOutput: audioOutput)
+    }
+    func isNightModeSupported() -> Bool { MPVPlayerViewController.nightModeSupported }
+    func setNightMode(enabled: Bool, filter: String, label: String) {
+        ensurePlayerViewController().setNightMode(enabled, filter: (filter: filter, label: label))
     }
 
     func applyAudioLanguagePreferences(languages: [String]) {
@@ -415,6 +420,8 @@ final class MPVPlayerViewController: UIViewController {
     private var lastVideoOutputSettings: VideoOutputSettings?
     private var lastSubtitleStyle: SubtitleStyleSettings?
     private var lastAudioOutput: String?
+    private var nightModeEnabled = false
+    private var nightModeFilter: (filter: String, label: String)?
     private var lastResizeMode: Int?
     private var lastVideoZoom: Double?
     private var lastSubtitleDelayMs: Int?
@@ -737,6 +744,7 @@ final class MPVPlayerViewController: UIViewController {
         setSetupOption("demuxer-lavf-o", "protocol_whitelist=[file,crypto,data,http,https,tcp,tls]")
 
         checkError(mpv_initialize(mpv))
+        applyNightModeFilter()
 
         mpv_observe_property(mpv, 0, "pause", MPV_FORMAT_FLAG)
         mpv_observe_property(mpv, 0, "paused-for-cache", MPV_FORMAT_FLAG)
@@ -777,6 +785,19 @@ final class MPVPlayerViewController: UIViewController {
                                                name: UIApplication.willEnterForegroundNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(didBecomeActive),
                                                name: UIApplication.didBecomeActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(willResignActive),
+                                               name: UIApplication.willResignActiveNotification, object: nil)
+    }
+
+    @objc private func willResignActive() {
+        guard mpv != nil else { return }
+        let coreGeneration = mpvGeneration
+        mpvQueue.async { [weak self] in
+            guard let self, self.mpvGeneration == coreGeneration, self.mpv != nil else { return }
+            if self.hwdecBeforeBackground == nil {
+                self.hwdecBeforeBackground = self.getString("hwdec-current")
+            }
+        }
     }
 
     private var hwdecBeforeBackground: String?
@@ -790,7 +811,32 @@ final class MPVPlayerViewController: UIViewController {
             self.hwdecBeforeBackground = self.getString("hwdec-current")
         }
         if pictureInPictureController?.enteredBackground() == true { return }
-        pauseBackgroundPlayback()
+        beginBackgroundGracePeriod()
+    }
+
+    private static let backgroundGraceInterval: TimeInterval = 10
+    private var backgroundGraceWorkItem: DispatchWorkItem?
+
+    func beginBackgroundGracePeriod() {
+        cancelBackgroundGracePeriod()
+        setStringProperty("vid", "no")
+        guard isPlayerPlaying else { return }
+        let item = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.backgroundGraceWorkItem = nil
+            guard self.mpv != nil,
+                  UIApplication.shared.applicationState == .background,
+                  self.pictureInPictureController?.keepsPlaybackAlive != true else { return }
+            InAppLogBridge.shared.info(tag: "MPV/iOS", message: "Background grace period ended; pausing playback")
+            self.pausePlayback()
+        }
+        backgroundGraceWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.backgroundGraceInterval, execute: item)
+    }
+
+    private func cancelBackgroundGracePeriod() {
+        backgroundGraceWorkItem?.cancel()
+        backgroundGraceWorkItem = nil
     }
 
     func pauseBackgroundPlayback() {
@@ -803,6 +849,7 @@ final class MPVPlayerViewController: UIViewController {
     }
 
     @objc private func enterForeground() {
+        cancelBackgroundGracePeriod()
         resumeRenderingAfterDeviceLossIfPossible(reason: "enter-foreground")
         guard mpv != nil else { return }
         let wasInPictureInPicture = pictureInPictureController?.enteredForeground() == true
@@ -820,16 +867,20 @@ final class MPVPlayerViewController: UIViewController {
         guard mpv != nil else { return }
         let configured = lastVideoOutputSettings?.hardwareDecoder ?? "videotoolbox"
         guard configured != "no" else { return }
+        if pictureInPictureController?.isPictureInPictureActive == true {
+            mpvQueue.async { [weak self] in self?.hwdecBeforeBackground = nil }
+            return
+        }
         let coreGeneration = mpvGeneration
         mpvQueue.async { [weak self] in
             guard let self, self.mpvGeneration == coreGeneration, self.mpv != nil else { return }
             let before = self.hwdecBeforeBackground ?? ""
             self.hwdecBeforeBackground = nil
+            guard !before.isEmpty, before != "no" else { return }
             let current = self.getString("hwdec-current") ?? ""
-            guard !before.isEmpty, before != "no", current.isEmpty || current == "no" else { return }
             InAppLogBridge.shared.warn(
                 tag: "MPV/iOS",
-                message: "Hardware decoding lost in background (was \(before)); reinitialising hwdec=\(configured)"
+                message: "Reinitialising hwdec=\(configured) after interruption (was \(before), now \(current.isEmpty ? "none" : current))"
             )
             self.setStringProperty("hwdec", "no")
             self.setStringProperty("hwdec", configured)
@@ -1384,6 +1435,32 @@ final class MPVPlayerViewController: UIViewController {
         setVideoEqualizer("gamma", gamma)
     }
 
+    func setNightMode(_ enabled: Bool, filter: (filter: String, label: String)) {
+        nightModeEnabled = enabled
+        nightModeFilter = filter
+        applyNightModeFilter()
+    }
+
+    static let nightModeSupported: Bool = {
+        let supported = avfilter_get_by_name("acompressor") != nil && avfilter_get_by_name("alimiter") != nil
+        if !supported {
+            InAppLogBridge.shared.warn(
+                tag: "MPV/iOS",
+                message: "night mode unavailable: FFmpeg build lacks acompressor/alimiter"
+            )
+        }
+        return supported
+    }()
+
+    private func applyNightModeFilter() {
+        guard mpv != nil, let nightModeFilter, Self.nightModeSupported else { return }
+        command("af", args: ["remove", nightModeFilter.label], checkForErrors: false)
+        if nightModeEnabled {
+            command("af", args: ["add", nightModeFilter.filter])
+        }
+        InAppLogBridge.shared.info(tag: "MPV/iOS", message: "night mode \(nightModeEnabled ? "on" : "off")")
+    }
+
     func configureAudioOutput(audioOutput: String) {
         guard mpv != nil else { return }
         let resolvedAudioOutput: String
@@ -1493,7 +1570,21 @@ final class MPVPlayerViewController: UIViewController {
 
     func addSubtitleUrl(_ url: String) {
         guard mpv != nil else { return }
-        command("sub-add", args: [url, "select"])
+        let coreGeneration = mpvGeneration
+        let headers = activeRequestHeaders
+        // Hebrew SRTs are often authored with sentence-final punctuation at the start
+        // of the line (for legacy LTR renderers). mpv lays Hebrew out RTL, so that
+        // punctuation shows at the start of the sentence. Fix the file off the main
+        // thread before handing it to mpv; fall back to the original URL otherwise.
+        MPVSubtitleRtlFix.prepare(url: url, headers: headers) { [weak self] localPath, title in
+            guard let self, self.mpvGeneration == coreGeneration else { return }
+            if let localPath {
+                InAppLogBridge.shared.info(tag: "MPV/SubRtl", message: "using RTL-fixed subtitle copy")
+                self.command("sub-add", args: [localPath, "select", title])
+            } else {
+                self.command("sub-add", args: [url, "select"])
+            }
+        }
     }
 
     private func addSubtitle(_ subtitle: PluginSubtitle, mode: String) {

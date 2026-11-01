@@ -44,6 +44,8 @@ data class PlayerSettingsUiState(
     val skipBackwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
     val skipForwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
     val toolbarLayout: PlayerToolbarLayout = PlayerToolbarLayout.Default,
+    val legacyBottomButtons: LegacyBottomButtonLayout = LegacyPlayerButtonLayouts.DefaultBottom,
+    val legacyTopButtons: LegacyTopButtonLayout = LegacyPlayerButtonLayouts.DefaultTop,
     val touchGesturesEnabled: Boolean = true,
     val swipeToSeekEnabled: Boolean = true,
     val seekPreviewEnabled: Boolean = true,
@@ -70,6 +72,8 @@ data class PlayerSettingsUiState(
     val mapDV7ToHevc: Boolean = false,
     val tunnelingEnabled: Boolean = false,
     val androidAudioPassthroughEnabled: Boolean = false,
+    val nightModeButtonEnabled: Boolean = true,
+    val nightModeEnabled: Boolean = false,
     val exoNativeMemoryEnabled: Boolean = false,
     val customPlaybackBuffersEnabled: Boolean = false,
     val vodDiskCacheEnabled: Boolean = false,
@@ -88,6 +92,7 @@ data class PlayerSettingsUiState(
     val streamAutoPlayRegex: String = "",
     val streamAutoPlayTimeoutSeconds: Int = 3,
     val skipIntroEnabled: Boolean = true,
+    val skipIntroOffsetSeconds: Int = 0,
     val autoSkipSegmentTypes: Set<AutoSkipSegmentType> = emptySet(),
     val animeSkipEnabled: Boolean = false,
     val animeSkipClientId: String = "",
@@ -140,6 +145,8 @@ object PlayerSettingsRepository {
     private var skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
     private var skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
     private var toolbarLayout = PlayerToolbarLayout.Default
+    private var legacyBottomButtons = LegacyPlayerButtonLayouts.DefaultBottom
+    private var legacyTopButtons = LegacyPlayerButtonLayouts.DefaultTop
     private var touchGesturesEnabled = true
     private var swipeToSeekEnabled = true
     private var seekPreviewEnabled = true
@@ -166,6 +173,8 @@ object PlayerSettingsRepository {
     private var mapDV7ToHevc = false
     private var tunnelingEnabled = false
     private var androidAudioPassthroughEnabled = false
+    private var nightModeButtonEnabled = true
+    private var nightModeEnabled = false
     private var exoNativeMemoryEnabled = false
     private var customPlaybackBuffersEnabled = false
     private var vodDiskCacheEnabled = false
@@ -184,6 +193,7 @@ object PlayerSettingsRepository {
     private var streamAutoPlayRegex = ""
     private var streamAutoPlayTimeoutSeconds = 3
     private var skipIntroEnabled = true
+    private var skipIntroOffsetSeconds = 0
     private var autoSkipSegmentTypes: Set<AutoSkipSegmentType> = emptySet()
     private var animeSkipEnabled = false
     private var animeSkipClientId = ""
@@ -241,6 +251,8 @@ object PlayerSettingsRepository {
         skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
         skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
         toolbarLayout = PlayerToolbarLayout.Default
+        legacyBottomButtons = LegacyPlayerButtonLayouts.DefaultBottom
+        legacyTopButtons = LegacyPlayerButtonLayouts.DefaultTop
         touchGesturesEnabled = true
         swipeToSeekEnabled = true
         seekPreviewEnabled = true
@@ -267,6 +279,8 @@ object PlayerSettingsRepository {
         mapDV7ToHevc = false
         tunnelingEnabled = false
         androidAudioPassthroughEnabled = false
+        nightModeButtonEnabled = true
+        nightModeEnabled = false
         exoNativeMemoryEnabled = false
         customPlaybackBuffersEnabled = false
         vodDiskCacheEnabled = false
@@ -285,6 +299,7 @@ object PlayerSettingsRepository {
         streamAutoPlayRegex = ""
         streamAutoPlayTimeoutSeconds = 3
         skipIntroEnabled = true
+        skipIntroOffsetSeconds = 0
         autoSkipSegmentTypes = emptySet()
         animeSkipEnabled = false
         animeSkipClientId = ""
@@ -337,6 +352,8 @@ object PlayerSettingsRepository {
         skipBackwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipBackwardSeconds())
         skipForwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipForwardSeconds())
         toolbarLayout = PlayerToolbarLayout.decode(PlayerSettingsStorage.loadToolbarLayout())
+        legacyBottomButtons = LegacyPlayerButtonLayouts.decodeBottom(PlayerSettingsStorage.loadLegacyBottomButtons())
+        legacyTopButtons = LegacyPlayerButtonLayouts.decodeTop(PlayerSettingsStorage.loadLegacyTopButtons())
         touchGesturesEnabled = PlayerSettingsStorage.loadTouchGesturesEnabled() ?: true
         swipeToSeekEnabled = PlayerSettingsStorage.loadSwipeToSeekEnabled() ?: true
         seekPreviewEnabled = PlayerSettingsStorage.loadSeekPreviewEnabled() ?: true
@@ -403,6 +420,8 @@ object PlayerSettingsRepository {
         mapDV7ToHevc = PlayerSettingsStorage.loadMapDV7ToHevc() ?: false
         tunnelingEnabled = PlayerSettingsStorage.loadTunnelingEnabled() ?: false
         androidAudioPassthroughEnabled = PlayerSettingsStorage.loadAndroidAudioPassthroughEnabled() ?: false
+        nightModeButtonEnabled = PlayerSettingsStorage.loadNightModeButtonEnabled() ?: true
+        nightModeEnabled = PlayerSettingsStorage.loadNightModeEnabled() ?: false
         exoNativeMemoryEnabled = PlayerSettingsStorage.loadExoNativeMemoryEnabled() ?: false
         customPlaybackBuffersEnabled = PlayerSettingsStorage.loadCustomPlaybackBuffersEnabled() ?: false
         vodDiskCacheEnabled = PlayerSettingsStorage.loadVodDiskCacheEnabled() ?: false
@@ -444,6 +463,7 @@ object PlayerSettingsRepository {
             PlayerSettingsStorage.saveStreamAutoPlayTimeoutSeconds(streamAutoPlayTimeoutSeconds)
         }
         skipIntroEnabled = PlayerSettingsStorage.loadSkipIntroEnabled() ?: true
+        skipIntroOffsetSeconds = normalizeSkipIntroOffsetSeconds(PlayerSettingsStorage.loadSkipIntroOffsetSeconds())
         autoSkipSegmentTypes = PlayerSettingsStorage.loadAutoSkipSegmentTypes()
             ?.mapNotNull(AutoSkipSegmentType::fromStoredValue)?.toSet() ?: buildSet {
                 if (PlayerSettingsStorage.loadAutoSkipMovieCredits() == true) add(AutoSkipSegmentType.MOVIE_CREDITS)
@@ -585,6 +605,22 @@ object PlayerSettingsRepository {
         toolbarLayout = layout
         publish()
         PlayerSettingsStorage.saveToolbarLayout(layout.encode())
+    }
+
+    fun setLegacyBottomButtons(layout: LegacyBottomButtonLayout) {
+        ensureLoaded()
+        if (legacyBottomButtons == layout) return
+        legacyBottomButtons = layout
+        publish()
+        PlayerSettingsStorage.saveLegacyBottomButtons(LegacyPlayerButtonLayouts.encodeBottom(layout))
+    }
+
+    fun setLegacyTopButtons(layout: LegacyTopButtonLayout) {
+        ensureLoaded()
+        if (legacyTopButtons == layout) return
+        legacyTopButtons = layout
+        publish()
+        PlayerSettingsStorage.saveLegacyTopButtons(LegacyPlayerButtonLayouts.encodeTop(layout))
     }
 
     fun setTouchGesturesEnabled(enabled: Boolean) {
@@ -825,6 +861,22 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveAndroidAudioPassthroughEnabled(enabled)
     }
 
+    fun setNightModeButtonEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (nightModeButtonEnabled == enabled) return
+        nightModeButtonEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveNightModeButtonEnabled(enabled)
+    }
+
+    fun setNightModeEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (nightModeEnabled == enabled) return
+        nightModeEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveNightModeEnabled(enabled)
+    }
+
     fun setExoNativeMemoryEnabled(value: Boolean) {
         ensureLoaded()
         if (exoNativeMemoryEnabled == value) return
@@ -961,6 +1013,15 @@ object PlayerSettingsRepository {
         streamAutoPlayTimeoutSeconds = seconds
         publish()
         PlayerSettingsStorage.saveStreamAutoPlayTimeoutSeconds(seconds)
+    }
+
+    fun setSkipIntroOffsetSeconds(seconds: Int) {
+        ensureLoaded()
+        val normalized = normalizeSkipIntroOffsetSeconds(seconds)
+        if (skipIntroOffsetSeconds == normalized) return
+        skipIntroOffsetSeconds = normalized
+        publish()
+        PlayerSettingsStorage.saveSkipIntroOffsetSeconds(normalized)
     }
 
     fun setSkipIntroEnabled(enabled: Boolean) {
@@ -1302,6 +1363,8 @@ object PlayerSettingsRepository {
             skipBackwardSeconds = skipBackwardSeconds,
             skipForwardSeconds = skipForwardSeconds,
             toolbarLayout = toolbarLayout,
+            legacyBottomButtons = legacyBottomButtons,
+            legacyTopButtons = legacyTopButtons,
             touchGesturesEnabled = touchGesturesEnabled,
             swipeToSeekEnabled = swipeToSeekEnabled,
             seekPreviewEnabled = seekPreviewEnabled,
@@ -1328,6 +1391,8 @@ object PlayerSettingsRepository {
             mapDV7ToHevc = mapDV7ToHevc,
             tunnelingEnabled = tunnelingEnabled,
             androidAudioPassthroughEnabled = androidAudioPassthroughEnabled,
+            nightModeButtonEnabled = nightModeButtonEnabled,
+            nightModeEnabled = nightModeEnabled,
             exoNativeMemoryEnabled = exoNativeMemoryEnabled,
             customPlaybackBuffersEnabled = customPlaybackBuffersEnabled,
             vodDiskCacheEnabled = vodDiskCacheEnabled,
@@ -1346,6 +1411,7 @@ object PlayerSettingsRepository {
             streamAutoPlayRegex = streamAutoPlayRegex,
             streamAutoPlayTimeoutSeconds = streamAutoPlayTimeoutSeconds,
             skipIntroEnabled = skipIntroEnabled,
+            skipIntroOffsetSeconds = skipIntroOffsetSeconds,
             autoSkipSegmentTypes = autoSkipSegmentTypes,
             animeSkipEnabled = animeSkipEnabled,
             animeSkipClientId = animeSkipClientId,
@@ -1394,6 +1460,12 @@ object PlayerSettingsRepository {
 
 val PlayerSkipSecondsOptions = listOf(5, 10, 15, 30)
 const val PLAYER_SKIP_SECONDS_DEFAULT = 10
+
+const val SKIP_INTRO_OFFSET_SLIDER_SECONDS = 30
+const val SKIP_INTRO_OFFSET_MAX_SECONDS = 60
+
+internal fun normalizeSkipIntroOffsetSeconds(seconds: Int?): Int =
+    (seconds ?: 0).coerceIn(-SKIP_INTRO_OFFSET_MAX_SECONDS, SKIP_INTRO_OFFSET_MAX_SECONDS)
 
 internal fun normalizePlayerSkipSeconds(seconds: Int?): Int =
     seconds?.takeIf { it in PlayerSkipSecondsOptions } ?: PLAYER_SKIP_SECONDS_DEFAULT

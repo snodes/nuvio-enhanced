@@ -27,7 +27,10 @@ actual object PlayerSettingsStorage {
     private const val holdToSpeedEnabledKey = "hold_to_speed_enabled"
     private const val holdToSpeedValueKey = "hold_to_speed_value"
     private const val skipBackwardSecondsKey = "skip_backward_seconds"
+    private const val skipIntroOffsetSecondsKey = "skip_intro_offset_seconds"
     private const val toolbarLayoutKey = "player_toolbar_layout"
+    private const val legacyBottomButtonsKey = "legacy_player_bottom_buttons"
+    private const val legacyTopButtonsKey = "legacy_player_top_buttons"
     private const val skipForwardSecondsKey = "skip_forward_seconds"
     private const val touchGesturesEnabledKey = "touch_gestures_enabled"
     private const val swipeToSeekEnabledKey = "swipe_to_seek_enabled"
@@ -68,6 +71,8 @@ actual object PlayerSettingsStorage {
     private const val mapDV7ToHevcKey = "map_dv7_to_hevc"
     private const val tunnelingEnabledKey = "tunneling_enabled"
     private const val androidAudioPassthroughEnabledKey = "android_audio_passthrough_enabled"
+    private const val nightModeButtonEnabledKey = "night_mode_button_enabled"
+    private const val nightModeEnabledKey = "night_mode_enabled"
     private const val streamAutoPlayModeKey = "stream_auto_play_mode"
     private const val streamAutoPlaySourceKey = "stream_auto_play_source"
     private const val streamAutoPlaySelectedAddonsKey = "stream_auto_play_selected_addons"
@@ -326,9 +331,27 @@ actual object PlayerSettingsStorage {
         NSUserDefaults.standardUserDefaults.setObject(layout, forKey = ProfileScopedKey.of(toolbarLayoutKey))
     }
 
+    actual fun loadLegacyBottomButtons(): String? =
+        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(legacyBottomButtonsKey))
+
+    actual fun saveLegacyBottomButtons(layout: String) {
+        NSUserDefaults.standardUserDefaults.setObject(layout, forKey = ProfileScopedKey.of(legacyBottomButtonsKey))
+    }
+
+    actual fun loadLegacyTopButtons(): String? =
+        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(legacyTopButtonsKey))
+
+    actual fun saveLegacyTopButtons(layout: String) {
+        NSUserDefaults.standardUserDefaults.setObject(layout, forKey = ProfileScopedKey.of(legacyTopButtonsKey))
+    }
+
     actual fun loadSkipBackwardSeconds(): Int? = loadInt(skipBackwardSecondsKey)
 
     actual fun saveSkipBackwardSeconds(seconds: Int) = saveInt(skipBackwardSecondsKey, seconds)
+
+    actual fun loadSkipIntroOffsetSeconds(): Int? = loadInt(skipIntroOffsetSecondsKey)
+
+    actual fun saveSkipIntroOffsetSeconds(seconds: Int) = saveInt(skipIntroOffsetSecondsKey, seconds)
 
     actual fun loadSkipForwardSeconds(): Int? = loadInt(skipForwardSecondsKey)
 
@@ -724,6 +747,34 @@ actual object PlayerSettingsStorage {
 
     actual fun saveAndroidAudioPassthroughEnabled(enabled: Boolean) {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(androidAudioPassthroughEnabledKey))
+    }
+
+    actual fun loadNightModeButtonEnabled(): Boolean? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(nightModeButtonEnabledKey)
+        return if (defaults.objectForKey(key) != null) {
+            defaults.boolForKey(key)
+        } else {
+            null
+        }
+    }
+
+    actual fun saveNightModeButtonEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(nightModeButtonEnabledKey))
+    }
+
+    actual fun loadNightModeEnabled(): Boolean? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(nightModeEnabledKey)
+        return if (defaults.objectForKey(key) != null) {
+            defaults.boolForKey(key)
+        } else {
+            null
+        }
+    }
+
+    actual fun saveNightModeEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(nightModeEnabledKey))
     }
 
     actual fun loadMapDV7ToHevc(): Boolean? {
