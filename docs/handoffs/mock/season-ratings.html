@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nuvio mock: one page per show, season picker + your MAL scores strip</title>
+<style>
+  :root {
+    --bg: #000;
+    --fg: #fff;
+    --fg2: rgba(255,255,255,.86);
+    --lav: #C9A0F0;
+    --lav-deep: #2a1a3d;
+    --mal: #2E51A2;      /* MAL brand blue (fills) */
+    --mal-hi: #7F9DFF;   /* MAL blue lifted for text on black */
+    --btn: #1d1528;      /* round action buttons: dark lavender, not gray */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #000; color: var(--fg);
+    font-family: -apple-system, "SF Pro Text", Inter, "Segoe UI", system-ui, sans-serif;
+    padding: 28px 30px 40px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .intro { color: var(--fg2); font-size: 14px; margin: 0 0 22px; max-width: 1200px; line-height: 1.45; }
+  .intro b { color: var(--lav); }
+  .row { display: flex; gap: 24px; align-items: flex-start; }
+  .col h2 { font-size: 15px; margin: 0 0 4px; color: var(--lav); letter-spacing: .02em; }
+  .col p.note { font-size: 12.5px; color: var(--fg2); margin: 0 0 10px; width: 390px; line-height: 1.4; min-height: 36px; }
+
+  /* ---------- phone frame ---------- */
+  .phone {
+    width: 390px; background: var(--bg); border-radius: 34px; overflow: hidden;
+    outline: 2px solid rgba(201,160,240,.45); position: relative;
+  }
+  .hero { height: 360px; position: relative; overflow: hidden; transition: background .35s; }
+  .hero .ph-label {
+    position: absolute; top: 72px; left: 0; right: 0; text-align: center;
+    font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.9);
+  }
+  .hero .ph-season {
+    position: absolute; top: 92px; left: 0; right: 0; text-align: center;
+    font-size: 64px; font-weight: 900; color: rgba(255,255,255,.22); letter-spacing: -.02em; line-height: 1;
+  }
+  .hero .fade { position: absolute; inset: auto 0 0 0; height: 170px; background: linear-gradient(transparent, #000 92%); }
+  .status { position: absolute; top: 12px; left: 26px; right: 22px; display: flex; justify-content: space-between; font-weight: 700; font-size: 15px; z-index: 2; }
+  .island { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 108px; height: 30px; background: #000; border-radius: 20px; z-index: 2; }
+  .back { position: absolute; top: 52px; left: 16px; width: 38px; height: 38px; border-radius: 50%; background: rgba(0,0,0,.55); display: grid; place-items: center; font-size: 20px; z-index: 2; }
+  .logo { position: absolute; bottom: 26px; left: 0; right: 0; text-align: center; z-index: 1; line-height: .9; }
+  .logo.mha span { display: block; font-weight: 900; font-style: italic; font-size: 38px; color: #ff3b1f; -webkit-text-stroke: 1.5px #fff; text-shadow: 3px 3px 0 #000; letter-spacing: -.01em; }
+  .logo.mha span:first-child { font-size: 30px; }
+  .logo.bleach span { display: block; font-weight: 900; font-size: 46px; color: #fff; letter-spacing: .12em; text-shadow: 0 2px 14px #000; }
+  .logo.bleach small { display: block; font-size: 12px; letter-spacing: .3em; color: #fff; margin-top: 6px; font-weight: 700; }
+
+  .body { padding: 0 18px 26px; }
+  .genres { text-align: center; color: var(--fg2); font-size: 14px; margin: 2px 0 12px; }
+
+  /* season dropdown */
+  .season-select { position: relative; margin: 0 auto 12px; width: max-content; }
+  .season-select select {
+    appearance: none; -webkit-appearance: none; background: var(--lav-deep); color: #fff;
+    border: 1.5px solid var(--lav); border-radius: 999px; font: 600 15px/1 inherit;
+    font-family: inherit; padding: 10px 38px 10px 18px; cursor: pointer;
+  }
+  .season-select::after { content: "▾"; position: absolute; right: 16px; top: 50%; transform: translateY(-52%); color: var(--lav); pointer-events: none; font-size: 14px; }
+
+  .play { background: var(--lav); color: #000; border-radius: 999px; height: 50px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 17px; font-weight: 600; }
+  .actions { display: flex; justify-content: center; gap: 16px; margin: 14px 0 18px; }
+  .actions div { width: 50px; height: 50px; border-radius: 50%; background: var(--btn); display: grid; place-items: center; font-size: 18px; }
+
+  /* section header for the strip */
+  .sec-h { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 8px; }
+  .sec-h b { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+  .sec-h b i { font-style: normal; color: var(--mal-hi); }
+  .sec-h span { font-size: 12px; color: var(--fg2); }
+
+  /* ---------- Option A: chips ---------- */
+  .chips { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
+  .chip { border-radius: 12px; padding: 7px 0 6px; text-align: center; cursor: pointer; background: #0d1530; border: 1.5px solid rgba(127,157,255,.45); }
+  .chip .s { font-size: 11px; font-weight: 700; color: #fff; }
+  .chip .v { font-size: 15px; font-weight: 800; color: var(--mal-hi); margin-top: 2px; }
+  .chip .v small { font-size: 9px; font-weight: 700; color: rgba(255,255,255,.85); }
+  .chip.ns { background: transparent; border-style: dashed; }
+  .chip.ns .v, .chip.nol .v { font-size: 10px; font-weight: 700; color: #fff; line-height: 1.15; padding-top: 2px; }
+  .chip.nol { background: transparent; border: 1.5px dotted rgba(255,255,255,.7); }
+  .chip.on { background: var(--mal); border: 2px solid var(--lav); box-shadow: 0 0 0 3px rgba(201,160,240,.25); }
+  .chip.on .v { color: #fff; }
+
+  /* ---------- Option B: bars ---------- */
+  .bars { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; align-items: end; height: 132px; }
+  .bar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; cursor: pointer; }
+  .bar .val { font-size: 13px; font-weight: 800; color: var(--mal-hi); margin-bottom: 4px; }
+  .bar .col { width: 100%; border-radius: 7px 7px 3px 3px; background: linear-gradient(#5f82ff, var(--mal)); }
+  .bar .lab { font-size: 11px; font-weight: 700; margin-top: 6px; color: #fff; }
+  .bar.ns .col { background: transparent; border: 1.5px dashed rgba(127,157,255,.8); }
+  .bar.nol .col { background: transparent; border: 1.5px dotted rgba(255,255,255,.7); }
+  .bar.ns .val, .bar.nol .val { color: #fff; font-size: 10px; text-align: center; line-height: 1.1; }
+  .bar.on .col { background: linear-gradient(#e3c8ff, var(--lav)); box-shadow: 0 0 14px rgba(201,160,240,.55); }
+  .bar.on.ns .col, .bar.on.nol .col { background: rgba(201,160,240,.18); border: 2px solid var(--lav); box-shadow: none; }
+  .bar.on .val { color: var(--lav); }
+  .bar.on .lab { background: var(--lav); color: #000; border-radius: 6px; padding: 1px 5px; }
+
+  /* ---------- Option C: line ---------- */
+  .line svg { display: block; width: 100%; overflow: visible; }
+  .line .pt { cursor: pointer; }
+  .groupbtn { display: inline-flex; align-items: center; gap: 6px; background: var(--lav-deep); color: #fff; border: 1.5px solid var(--lav); border-radius: 999px; padding: 4px 11px; font: 600 12px/1.2 inherit; font-family: inherit; cursor: pointer; }
+
+  /* ---------- your MAL score control ---------- */
+  .myscore { margin: 16px 0 4px; padding: 12px 12px 12px; border-radius: 16px; background: #0b1230; border: 1.5px solid rgba(127,157,255,.5); }
+  .myscore .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; }
+  .myscore .top b { font-size: 14px; }
+  .myscore .top b i { font-style: normal; color: var(--mal-hi); }
+  .myscore .top button { background: none; border: none; color: #fff; text-decoration: underline; font: 600 12px inherit; font-family: inherit; cursor: pointer; padding: 0; }
+  .nums { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+  .nums button { height: 32px; border-radius: 9px; border: 1.5px solid rgba(127,157,255,.55); background: transparent; color: #fff; font: 700 14px inherit; font-family: inherit; cursor: pointer; padding: 0; }
+  .nums button.fill { background: rgba(46,81,162,.7); border-color: rgba(127,157,255,.8); }
+  .nums button.sel { background: var(--mal); border-color: #fff; }
+  .addlist { width: 100%; height: 36px; border-radius: 10px; border: 1.5px dashed #fff; background: transparent; color: #fff; font: 700 14px inherit; font-family: inherit; cursor: pointer; }
+
+  /* ---------- secondary meta ---------- */
+  .meta { display: flex; gap: 14px; align-items: center; font-weight: 700; font-size: 16px; margin: 14px 2px 8px; }
+  .meta .rt { border: 1.5px solid rgba(255,255,255,.8); border-radius: 6px; padding: 1px 7px; font-size: 13px; font-weight: 600; }
+  .badges { display: flex; gap: 14px; align-items: center; font-size: 13px; font-weight: 700; margin: 0 2px 10px; color: var(--fg2); }
+  .badges .lbl { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.8); font-weight: 600; }
+  .bdg { display: inline-flex; align-items: center; gap: 5px; }
+  .bdg .imdb { background: #f5c518; color: #000; font-weight: 900; font-size: 10px; padding: 1px 3px; border-radius: 3px; }
+  .bdg .malb { background: var(--mal); color: #fff; font-weight: 900; font-size: 9px; padding: 2px 3px; border-radius: 3px; }
+  .bdg .tom { color: #ff4a2e; }
+  .syn { font-size: 14.5px; line-height: 1.45; color: #fff; margin: 0 2px; }
+  .legend { margin-top: 26px; font-size: 13px; color: var(--fg2); line-height: 1.6; max-width: 1220px; }
+  .legend b { color: #fff; }
+</style>
+</head>
+<body>
+<h1>Show details: one page per show, season picker, and your MAL scores per season</h1>
+<p class="intro">
+  The dropdown swaps the hero to that season's TMDB poster (placeholder here) and the community MAL score to that season's MAL entry. IMDb and RT stay whole-show.
+  The <b>Your MAL scores</b> strip shows your own list score for every season at once, stays put when you switch, and tapping a season switches the dropdown.
+  The score control under it edits your MAL score for the selected season and updates the strip live. All three frames are interactive.
+</p>
+
+<div class="row">
+  <div class="col"><h2>A · Score chips</h2><p class="note">Densest. Every score is readable at a glance; dashed = on your list, not scored; dotted = not on your list.</p><div id="A"></div></div>
+  <div class="col"><h2>B · Vertical bars</h2><p class="note">Shows the shape of the show (which seasons you loved) while still printing each number.</p><div id="B"></div></div>
+  <div class="col"><h2>C · Line with dots (Bleach)</h2><p class="note">Trend view. TYBW is 4 separate MAL entries: tap the TYBW pill to collapse to one averaged dot or expand to each part.</p><div id="C"></div></div>
+</div>
+
+<p class="legend">
+  <b>Real data:</b> community MAL scores (read from myanimelist.net on Nov 1, 2026). <b>Made up:</b> your list scores, hero art (gradient placeholders standing in for TMDB season posters), IMDb/RT values, synopses.
+  The 5-star app rating row from today's page is replaced by the MAL score control in this mock.
+</p>
+
+<script>
+// Show data. `mal` = community MAL score per MAL entry (real). `mine` = sample personal score:
+// a number 1-10, 0 = on list but not scored, null = not on list.
+const MHA = {
+  key: "mha", logo: '<div class="logo mha"><span>MY HERO</span><span>ACADEMIA</span></div>',
+  genres: "Action &amp; Adventure • Animation • Sci-Fi &amp; Fantasy",
+  imdb: "8.2", rt: "100%", rating: "TV-14", runtime: "24m",
+  syn: "Izuku has dreamt of being a hero all his life, a lofty goal for anyone, but especially challenging for a kid with no superpowers.",
+  items: [
+    { id: "s1", label: "Season 1", short: "S1", year: 2016, mal: 7.82, mine: 8,  hue: 15 },
+    { id: "s2", label: "Season 2", short: "S2", year: 2017, mal: 8.04, mine: 9,  hue: 205 },
+    { id: "s3", label: "Season 3", short: "S3", year: 2018, mal: 7.97, mine: 8,  hue: 140 },
+    { id: "s4", label: "Season 4", short: "S4", year: 2019, mal: 7.86, mine: 7,  hue: 280 },
+    { id: "s5", label: "Season 5", short: "S5", year: 2021, mal: 7.35, mine: 6,  hue: 45 },
+    { id: "s6", label: "Season 6", short: "S6", year: 2022, mal: 8.21, mine: 10, hue: 350 },
+    { id: "s7", label: "Season 7", short: "S7", year: 2024, mal: 8.15, mine: 0,  hue: 185 },
+    { id: "s8", label: "Season 8", short: "S8", year: 2025, mal: 8.70, mine: null, hue: 255 },
+  ],
+};
+const BLEACH = {
+  key: "bleach", logo: '<div class="logo bleach"><span>BLEACH</span><small id="bl-sub">THOUSAND-YEAR BLOOD WAR</small></div>',
+  genres: "Action &amp; Adventure • Animation • Sci-Fi &amp; Fantasy",
+  imdb: "8.2", rt: "100%", rating: "TV-14", runtime: "24m",
+  syn: "Ichigo Kurosaki gains the powers of a Soul Reaper and is drawn into the war between the Soul Society and the Quincy.",
+  items: [
+    { id: "orig", label: "Original series", short: "Orig", play: "E1", year: 2004, mal: 8.01, mine: 7, hue: 25 },
+    { id: "tybw", label: "Thousand-Year Blood War", short: "TYBW", group: true, hue: 0, parts: [
+      { id: "p1", label: "TYBW · Part 1", short: "P1", play: "TYBW P1 E1", year: 2022, mal: 8.97, mine: 10,   hue: 0 },
+      { id: "p2", label: "TYBW · Part 2", short: "P2", play: "TYBW P2 E1", year: 2023, mal: 8.70, mine: 9,    hue: 220 },
+      { id: "p3", label: "TYBW · Part 3", short: "P3", play: "TYBW P3 E1", year: 2024, mal: 8.67, mine: 0,    hue: 300 },
+      { id: "p4", label: "TYBW · Part 4", short: "P4", play: "TYBW P4 E1", year: 2026, mal: 8.85, mine: null, hue: 190 },
+    ]},
+  ],
+};
+
+// Builds one interactive phone frame. layout: "chips" | "bars" | "line".
+function Frame(root, show, layout, startId, startExpanded) {
+  const leaves = show.items.flatMap(it => it.parts ? it.parts : [it]);
+  const byId = Object.fromEntries(leaves.map(l => [l.id, l]));
+  const groupOf = id => show.items.find(it => it.parts && it.parts.some(p => p.id === id));
+  const st = { sel: startId, expanded: !!startExpanded };
+
+  const options = show.items.map(it => it.parts
+    ? `<optgroup label="${it.label}">${it.parts.map(p => `<option value="${p.id}">${p.label}</option>`).join("")}</optgroup>`
+    : `<option value="${it.id}">${it.label}</option>`).join("");
+
+  root.innerHTML = `
+  <div class="phone">
+    <div class="hero">
+      <div class="island"></div>
+      <div class="status"><span>6:28</span><span>▮▮▮ ◠ 58</span></div>
+      <div class="back">‹</div>
+      <div class="ph-label">TMDB season poster placeholder</div>
+      <div class="ph-season"></div>
+      <div class="fade"></div>
+      ${show.logo}
+    </div>
+    <div class="body">
+      <div class="genres">${show.genres}</div>
+      <div class="season-select"><select>${options}</select></div>
+      <div class="play">▶ <span class="playtxt"></span></div>
+      <div class="actions"><div>⤓</div><div>↗</div><div>◉</div><div>＋</div></div>
+      <div class="sec-h"><b>Your <i>MAL</i> scores</b><span class="sec-sub"></span></div>
+      <div class="strip"></div>
+      <div class="myscore"></div>
+      <div class="meta"><span class="yr"></span><span>${show.runtime}</span><span class="rt">${show.rating}</span></div>
+      <div class="badges"><span class="lbl">Community</span>
+        <span class="bdg"><span class="imdb">IMDb</span>${show.imdb}</span>
+        <span class="bdg"><span class="malb">MAL</span><span class="malv"></span></span>
+        <span class="bdg"><span class="tom">●</span>${show.rt}</span></div>
+      <p class="syn">${show.syn}</p>
+    </div>
+  </div>`;
+  const $ = s => root.querySelector(s);
+  const select = $("select");
+  select.addEventListener("change", () => setSel(select.value));
+
+  function setSel(id) {
+    st.sel = id;
+    if (groupOf(id)) st.expanded = true;
+    render();
+  }
+
+  // Text for a score value: number, "Not scored", or "Not on list".
+  const txt = v => v === null ? "Not on list" : v === 0 ? "Not scored" : `${v}/10`;
+  const cls = v => v === null ? "nol" : v === 0 ? "ns" : "";
+
+  // Strip entries: leaves, or a collapsed group with the average of scored parts.
+  function entries() {
+    return show.items.flatMap(it => {
+      if (!it.parts) return [{ ...it, leafId: it.id, val: it.mine }];
+      if (st.expanded) return it.parts.map(p => ({ ...p, leafId: p.id, val: p.mine, inGroup: it }));
+      const scored = it.parts.filter(p => p.mine > 0);
+      const avg = scored.length ? Math.round(scored.reduce((a, p) => a + p.mine, 0) / scored.length * 10) / 10 : 0;
+      return [{ ...it, leafId: it.parts[0].id, val: avg, isGroup: true, nParts: it.parts.length, nScored: scored.length,
+                on: it.parts.some(p => p.id === st.sel) }];
+    });
+  }
+
+  function renderStrip() {
+    const es = entries();
+    const strip = $(".strip");
+    const isOn = e => e.isGroup ? e.on : e.leafId === st.sel;
+    if (layout === "chips") {
+      strip.innerHTML = `<div class="chips">${es.map(e => `
+        <div class="chip ${cls(e.val)} ${isOn(e) ? "on" : ""}" data-id="${e.leafId}">
+          <div class="s">${e.short}</div>
+          <div class="v">${e.val > 0 ? `${e.val}<small>/10</small>` : e.val === 0 ? "Not<br>scored" : "Not on<br>list"}</div>
+        </div>`).join("")}</div>`;
+    } else if (layout === "bars") {
+      strip.innerHTML = `<div class="bars">${es.map(e => `
+        <div class="bar ${cls(e.val)} ${isOn(e) ? "on" : ""}" data-id="${e.leafId}">
+          <div class="val">${e.val > 0 ? e.val : e.val === 0 ? "Not<br>scored" : "Not on<br>list"}</div>
+          <div class="col" style="height:${e.val > 0 ? e.val * 8.2 : 22}px"></div>
+          <div class="lab">${e.short}</div>
+        </div>`).join("")}</div>`;
+    } else {
+      strip.innerHTML = lineSVG(es, isOn);
+    }
+    strip.querySelectorAll("[data-id]").forEach(el => el.addEventListener("click", () => setSel(el.dataset.id)));
+    strip.querySelectorAll("[data-toggle]").forEach(el => el.addEventListener("click", ev => {
+      ev.stopPropagation(); st.expanded = !st.expanded;
+      // Collapsing while a part is selected keeps the part selected; the group dot is highlighted.
+      render();
+    }));
+  }
+
+  // Line chart: y from score 1-10, gaps at unscored entries; unscored drawn as hollow markers on the baseline.
+  function lineSVG(es, isOn) {
+    const W = 354, H = 180, top = 40, base = 128, padX = 30;
+    const step = es.length > 1 ? (W - padX * 2) / (es.length - 1) : 0;
+    const x = i => padX + i * step;
+    const y = v => base - (v - 1) / 9 * (base - top);
+    let path = "", pen = false;
+    es.forEach((e, i) => {
+      if (e.val > 0) { path += `${pen ? "L" : "M"}${x(i)},${y(e.val)} `; pen = true; } else pen = false;
+    });
+    // Bracket under grouped parts, with the expand/collapse pill.
+    const grpIdx = es.map((e, i) => (e.inGroup || e.isGroup) ? i : -1).filter(i => i >= 0);
+    let bracket = "";
+    if (grpIdx.length) {
+      const x0 = x(grpIdx[0]) - 14, x1 = x(grpIdx[grpIdx.length - 1]) + 14;
+      const g = es[grpIdx[0]].inGroup || es[grpIdx[0]];
+      if (st.expanded) bracket += `<rect x="${x0}" y="${top - 34}" width="${x1 - x0}" height="${base - top + 70}" rx="12" fill="rgba(201,160,240,.08)" stroke="rgba(201,160,240,.55)" stroke-dasharray="4 4"/>`;
+    }
+    const grid = [1, 5, 10].map(v => `<line x1="8" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(127,157,255,.28)"/><text x="0" y="${y(v) + 4}" font-size="10" fill="#fff" font-weight="600">${v}</text>`).join("");
+    const pts = es.map((e, i) => {
+      const on = isOn(e), cx = x(i);
+      const label = `<text x="${cx}" y="${base + 26}" text-anchor="middle" font-size="11" font-weight="700" fill="${on ? "#000" : "#fff"}">${e.short}</text>`;
+      const labBg = on ? `<rect x="${cx - 18}" y="${base + 14}" width="36" height="17" rx="6" fill="#C9A0F0"/>` : "";
+      let mark, val;
+      if (e.val > 0) {
+        mark = `<circle cx="${cx}" cy="${y(e.val)}" r="${on ? 9 : 6.5}" fill="${on ? "#C9A0F0" : "#2E51A2"}" stroke="#fff" stroke-width="2"/>`;
+        val = `<text x="${cx}" y="${y(e.val) - 14}" text-anchor="middle" font-size="13" font-weight="800" fill="${on ? "#C9A0F0" : "#9CB3FF"}">${e.val}${e.isGroup ? "" : ""}</text>`;
+      } else {
+        mark = `<circle cx="${cx}" cy="${base}" r="${on ? 9 : 7}" fill="${on ? "rgba(201,160,240,.25)" : "none"}" stroke="${on ? "#C9A0F0" : "#fff"}" stroke-width="1.6" stroke-dasharray="${e.val === 0 ? "3 2" : "1.5 2.5"}"/>`;
+        val = `<text x="${cx}" y="${base - 16}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff">${e.val === 0 ? "Not scored" : "Not on list"}</text>`;
+      }
+      const sub = e.isGroup ? `<text x="${cx}" y="${base + 44}" text-anchor="middle" font-size="9.5" fill="#fff">avg of ${e.nScored}/${e.nParts}</text>` : "";
+      return `<g class="pt" data-id="${e.leafId}"><rect x="${cx - step / 2}" y="0" width="${step || 60}" height="${base + 34}" fill="transparent"/>${labBg}${mark}${val}${label}${sub}</g>`;
+    }).join("");
+    const g = show.items.find(it => it.parts);
+    const pill = g ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <span style="font-size:12px;color:#fff">${st.expanded ? "Each part is its own MAL entry" : "TYBW collapsed: " + g.parts.length + " MAL entries"}</span>
+        <button class="groupbtn" data-toggle="1">${st.expanded ? "▾ Collapse TYBW" : "▸ Expand TYBW · " + g.parts.length + " parts"}</button></div>` : "";
+    return `<div class="line"><svg viewBox="0 0 ${W} ${H}" height="${H}">${grid}${bracket}<path d="${path}" fill="none" stroke="#7F9DFF" stroke-width="2.5" stroke-linejoin="round"/>${pts}</svg>${pill}</div>`;
+  }
+
+  function renderScore() {
+    const s = byId[st.sel], box = $(".myscore");
+    if (s.mine === null) {
+      box.innerHTML = `<div class="top"><b>Your <i>MAL</i> score · ${s.label}</b></div>
+        <button class="addlist">＋ Add ${s.label} to your MAL list</button>`;
+      box.querySelector(".addlist").onclick = () => { s.mine = 0; render(); };
+      return;
+    }
+    box.innerHTML = `<div class="top"><b>Your <i>MAL</i> score · ${s.label}</b>
+        <button>${s.mine ? "Clear score" : "Not scored"}</button></div>
+      <div class="nums">${Array.from({ length: 10 }, (_, i) => i + 1).map(n =>
+        `<button class="${n === s.mine ? "sel" : n < s.mine ? "fill" : ""}" data-n="${n}">${n}</button>`).join("")}</div>`;
+    box.querySelector(".top button").onclick = () => { s.mine = 0; render(); };
+    box.querySelectorAll("[data-n]").forEach(b => b.onclick = () => { s.mine = +b.dataset.n; render(); });
+  }
+
+  function render() {
+    const s = byId[st.sel];
+    select.value = s.id;
+    const h = s.hue;
+    $(".hero").style.background =
+      `radial-gradient(120% 80% at 30% 20%, hsl(${h} 85% 55%) 0%, transparent 60%),
+       radial-gradient(90% 70% at 85% 60%, hsl(${(h + 50) % 360} 80% 40%) 0%, transparent 65%),
+       linear-gradient(160deg, hsl(${h} 70% 22%), hsl(${(h + 200) % 360} 60% 10%))`;
+    $(".ph-season").textContent = s.label.replace("TYBW · ", "").replace("Original series", "Original").toUpperCase();
+    $(".ph-season").style.fontSize = s.label.length > 12 ? "44px" : "64px";
+    $(".playtxt").textContent = `Play ${s.play || s.short + " E1"}`;
+    $(".malv").textContent = s.mal.toFixed(2);
+    $(".yr").textContent = s.year;
+    const sub = root.querySelector("#bl-sub");
+    if (sub) sub.style.visibility = groupOf(s.id) ? "visible" : "hidden";
+    const scored = leaves.filter(l => l.mine > 0).length;
+    $(".sec-sub").textContent = `${scored} of ${leaves.length} scored · tap to switch`;
+    renderStrip();
+    renderScore();
+  }
+  render();
+}
+
+Frame(document.getElementById("A"), structuredClone(MHA), "chips", "s3");
+Frame(document.getElementById("B"), structuredClone(MHA), "bars", "s6");
+Frame(document.getElementById("C"), structuredClone(BLEACH), "line", "p2", true);
+</script>
+</body>
+</html>
