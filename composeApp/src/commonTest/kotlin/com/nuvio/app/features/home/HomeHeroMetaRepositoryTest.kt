@@ -2,6 +2,7 @@ package com.nuvio.app.features.home
 
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaExternalRating
+import com.nuvio.app.features.tmdb.TitleArtwork
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -18,11 +19,16 @@ class HomeHeroMetaRepositoryTest {
     )
 
     @Test
-    fun `artwork lookup changes only backdrop not season poster`() {
-        val original = preview.copy(poster = "season-poster", banner = "soft-backdrop")
-        val merged = original.withHeroMeta(HomeHeroMeta(backdrop = "largest-textless"))
+    fun `artwork lookup sets backdrop tall art and English logo but not season poster`() {
+        val original = preview.copy(poster = "season-poster", banner = "soft-backdrop", logo = "french-logo")
+        val merged = original.withHeroMeta(
+            HomeHeroMeta(artwork = TitleArtwork(backdrop = "largest-textless", tallArt = "key-art", logo = "english-logo")),
+        )
         assertEquals("largest-textless", merged.banner)
+        assertEquals("key-art", merged.heroTallArt)
+        assertEquals("english-logo", merged.logo)
         assertEquals("season-poster", merged.poster)
+        assertEquals("french-logo", original.withHeroMeta(HomeHeroMeta(artwork = TitleArtwork())).logo)
         assertEquals(original.id, merged.id)
         assertEquals(original.name, merged.name)
     }

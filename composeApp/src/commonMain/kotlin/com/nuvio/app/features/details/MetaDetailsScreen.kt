@@ -1162,32 +1162,33 @@ fun MetaDetailsScreen(
                     // Start on the home hero's earlier pick when there is one. Otherwise show no artwork
                     // while TMDB is asked, so the lower-resolution original doesn't flash first; it only
                     // appears if the lookup is slow, and is replaced when the pick arrives.
-                    val cachedBackdrop = remember(meta.id, meta.type, meta.imdbId, originalBackdrop) {
+                    val cachedArtwork = remember(meta.id, meta.type, meta.imdbId, originalBackdrop) {
                         TmdbBackdrops.cached(meta.id, meta.type, originalBackdrop, meta.imdbId)
                     }
-                    var selectedBackdrop by remember(meta.id, meta.type, meta.imdbId, originalBackdrop) {
-                        mutableStateOf(cachedBackdrop ?: originalBackdrop)
+                    var artwork by remember(meta.id, meta.type, meta.imdbId, originalBackdrop) {
+                        mutableStateOf(cachedArtwork)
                     }
                     var backdropPending by remember(meta.id, meta.type, meta.imdbId, originalBackdrop) {
-                        mutableStateOf(cachedBackdrop == null && originalBackdrop != null)
+                        mutableStateOf(cachedArtwork == null && originalBackdrop != null)
                     }
                     LaunchedEffect(meta.id, meta.type, meta.imdbId, originalBackdrop) {
-                        if (cachedBackdrop != null) return@LaunchedEffect
+                        if (cachedArtwork != null) return@LaunchedEffect
                         val slowLookup = launch {
                             delay(1_000)
                             backdropPending = false
                         }
-                        selectedBackdrop = TmdbBackdrops.resolve(meta.id, meta.type, originalBackdrop, meta.imdbId)
+                        artwork = TmdbBackdrops.artwork(meta.id, meta.type, originalBackdrop, meta.imdbId)
                         slowLookup.cancel()
                         backdropPending = false
                     }
-                    val backdropUrl = selectedBackdrop.takeUnless { backdropPending }
-                    // Visible heroes and background effects must use the same selected artwork.
-                    // Clearing the poster too keeps the heroes from showing it as a stand-in while pending.
+                    val backdropUrl = (artwork?.backdrop ?: originalBackdrop).takeUnless { backdropPending }
+                    // Visible heroes and background effects must use the same selected artwork, and the
+                    // English logo (the addon's can be any language). Clearing the poster too keeps the
+                    // heroes from showing it as a stand-in while pending.
                     val artworkMeta = if (backdropPending) {
                         meta.copy(background = null, poster = null)
                     } else {
-                        meta.copy(background = backdropUrl)
+                        meta.copy(background = backdropUrl, logo = artwork?.logo ?: meta.logo)
                     }
                     val backgroundMode = metaScreenSettingsUiState.backgroundMode
                     val dominantColorEnabled = backgroundMode == MetaScreenBackgroundMode.DominantColor &&

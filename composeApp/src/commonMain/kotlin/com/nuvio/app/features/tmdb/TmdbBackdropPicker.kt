@@ -9,36 +9,50 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
+
+/**
+ * Artwork picked for one title; any field is null when no source has it.
+ * [tallArt] is textless portrait key art for tall phone heroes, only when it is at least as sharp there
+ * as a 4K backdrop. [logo] is always English: Fanart.tv's most-liked, else TMDB's best.
+ */
+internal data class TitleArtwork(
+    val backdrop: String? = null,
+    val tallArt: String? = null,
+    val logo: String? = null,
+)
 
 /** Artwork-only lookup: independent of enrichment and never changes season metadata. */
 internal object TmdbBackdrops {
     private val picker = TmdbBackdropPicker(
         // The typed-in key, else the build's own TMDB key (phones usually have no typed key).
         apiKey = { TmdbSettingsRepository.effectiveApiKey().trim() },
+        fanartKey = { TmdbConfig.FANART_API_KEY.trim() },
         get = ::httpGetText,
     )
 
-    suspend fun resolve(id: String, type: String, original: String?, imdbId: String? = null): String? =
-        picker.resolve(id, type, original, imdbId)
+    suspend fun artwork(id: String, type: String, original: String?, imdbId: String? = null): TitleArtwork =
+        picker.artwork(id, type, original, imdbId)
 
-    fun cached(id: String, type: String, original: String?, imdbId: String? = null): String? =
+    fun cached(id: String, type: String, original: String?, imdbId: String? = null): TitleArtwork? =
         picker.cached(id, type, original, imdbId)
 }
 
 internal class TmdbBackdropPicker(
     private val apiKey: () -> String,
+    private val fanartKey: () -> String = { "" },
     private val get: suspend (String) -> String,
 ) {
-    private val cache = linkedMapOf<String, String?>()
+    private val cache = linkedMapOf<String, TitleArtwork>()
     private val mutex = Mutex()
 
     private data class Lookup(val key: String, val mediaType: String, val sourceId: String) {
         val cacheKey get() = "$key:$mediaType:$sourceId"
     }
 
-    // Null when this title can't be looked up on TMDB; callers then keep the original artwork.
+    // Null when this title can't be looked up on TMDB; callers then keep the addon's artwork.
     private fun lookup(id: String, type: String, original: String?, imdbId: String?): Lookup? {
         val key = apiKey().takeIf { it.isNotBlank() } ?: return null
         val mediaType = TmdbService.normalizeMediaType(type).takeIf { it == "movie" || it == "tv" } ?: return null
@@ -50,52 +64,78 @@ internal class TmdbBackdropPicker(
     }
 
     /**
-     * The final artwork without waiting: the earlier pick (e.g. the home hero's), or [original] when TMDB
-     * can't help. Null only when a network lookup is still needed, so screens can hold off on the
-     * lower-resolution [original] instead of flashing it before the pick arrives.
+     * The final artwork without waiting: an earlier pick (e.g. the home hero's), or an empty result when
+     * TMDB can't help. Null only when a network lookup is still needed, so screens can hold off on the
+     * addon's lower-resolution artwork instead of flashing it before the pick arrives.
      */
-    fun cached(id: String, type: String, original: String?, imdbId: String? = null): String? {
-        val cacheKey = lookup(id, type, original, imdbId)?.cacheKey ?: return original
+    fun cached(id: String, type: String, original: String?, imdbId: String? = null): TitleArtwork? {
+        val cacheKey = lookup(id, type, original, imdbId)?.cacheKey ?: return TitleArtwork()
         if (!mutex.tryLock()) return null
         return try {
-            if (cache.containsKey(cacheKey)) cache[cacheKey] ?: original else null
+            cache[cacheKey]
         } finally {
             mutex.unlock()
         }
     }
 
-    suspend fun resolve(id: String, type: String, original: String?, imdbId: String? = null): String? {
-        val lookup = lookup(id, type, original, imdbId) ?: return original
-        val (key, mediaType, sourceId) = lookup
+    suspend fun artwork(id: String, type: String, original: String?, imdbId: String? = null): TitleArtwork {
+        val lookup = lookup(id, type, original, imdbId) ?: return TitleArtwork()
         val cacheKey = lookup.cacheKey
         // The lock guards only the cache, never the network, so cached() can always read earlier picks.
-        mutex.withLock {
-            if (cache.containsKey(cacheKey)) return cache[cacheKey] ?: original
-        }
+        mutex.withLock { cache[cacheKey]?.let { return it } }
         return try {
-            val selected = withTimeoutOrNull(5_000L) {
-                val tmdbId = if (sourceId.startsWith("tt")) {
-                    val found = Json.parseToJsonElement(get(buildTmdbUrl(
-                        "find/$sourceId", key, mapOf("external_source" to "imdb_id"),
-                    ))) as JsonObject
-                    val results = found[if (mediaType == "tv") "tv_results" else "movie_results"] as? JsonArray
-                    (results?.firstOrNull() as? JsonObject)?.get("id")?.jsonPrimitive?.intOrNull
-                        ?.takeIf { it > 0 }?.toString() ?: return@withTimeoutOrNull null
-                } else sourceId
-                val images = get(buildTmdbUrl(
-                    "$mediaType/$tmdbId/images", key, mapOf("include_image_language" to "null,xx"),
-                ))
-                largestTextlessBackdrop(images)
-            }
+            val selected = withTimeoutOrNull(5_000L) { fetch(lookup) } ?: TitleArtwork()
             mutex.withLock {
                 cache[cacheKey] = selected
                 if (cache.size > 256) cache.remove(cache.keys.first())
             }
-            selected ?: original
+            selected
         } catch (error: Exception) {
             if (error is CancellationException) throw error
-            original
+            TitleArtwork()
         }
+    }
+
+    private suspend fun fetch(lookup: Lookup): TitleArtwork? {
+        val (key, mediaType, sourceId) = lookup
+        val tmdbId = if (sourceId.startsWith("tt")) {
+            val found = Json.parseToJsonElement(get(buildTmdbUrl(
+                "find/$sourceId", key, mapOf("external_source" to "imdb_id"),
+            ))) as JsonObject
+            val results = found[if (mediaType == "tv") "tv_results" else "movie_results"] as? JsonArray
+            (results?.firstOrNull() as? JsonObject)?.get("id")?.jsonPrimitive?.intOrNull
+                ?.takeIf { it > 0 }?.toString() ?: return null
+        } else sourceId
+        // One request: textless backdrops and posters, English logos, and the TVDB id Fanart.tv needs.
+        val details = Json.parseToJsonElement(get(buildTmdbUrl(
+            "$mediaType/$tmdbId", key,
+            mapOf("append_to_response" to "images,external_ids", "include_image_language" to "en,null,xx"),
+        ))) as JsonObject
+        val images = details["images"] as? JsonObject ?: JsonObject(emptyMap())
+        val fanartUrl = fanartKey().takeIf { it.isNotBlank() }?.let { fanart ->
+            if (mediaType == "movie") {
+                "https://webservice.fanart.tv/v3/movies/$tmdbId?api_key=$fanart"
+            } else {
+                (details["external_ids"] as? JsonObject)?.get("tvdb_id")?.jsonPrimitive?.intOrNull
+                    ?.takeIf { it > 0 }
+                    ?.let { "https://webservice.fanart.tv/v3/tv/$it?api_key=$fanart" }
+            }
+        }
+        val tallArt = largestTextless(images, "posters")
+            ?.takeIf { it.width >= TALL_ART_MIN_WIDTH && it.height > it.width }
+        return TitleArtwork(
+            backdrop = largestTextless(images, "backdrops")?.url,
+            tallArt = tallArt?.url,
+            logo = fanartUrl?.let { fanartEnglishLogo(it) } ?: tmdbEnglishLogo(images),
+        )
+    }
+
+    // Fanart.tv answers 404 for titles it doesn't know; any failure just means "no Fanart logo".
+    private suspend fun fanartEnglishLogo(url: String): String? = try {
+        fanartEnglishLogoFrom(get(url))
+    } catch (error: Exception) {
+        if (error is CancellationException) throw error
+        null
     }
 
     private fun supportedId(id: String): String? {
@@ -105,24 +145,55 @@ internal class TmdbBackdropPicker(
     }
 }
 
-internal fun largestTextlessBackdrop(body: String): String? {
-    val images = (Json.parseToJsonElement(body) as? JsonObject)?.get("backdrops") as? JsonArray
-        ?: return null
-    return images.mapNotNull { it as? JsonObject }
+// A 2:3 poster this wide shows at least as many source pixels per screen pixel on a tall phone hero
+// as a 3840x2160 backdrop does (the backdrop is cropped to about a third of its width there).
+internal const val TALL_ART_MIN_WIDTH = 1500
+
+private data class SizedImage(val url: String, val width: Int, val height: Int)
+
+private val tmdbImagePath = Regex("/[A-Za-z0-9_]+\\.[A-Za-z0-9]+")
+
+private fun JsonObject.int(name: String): Int = this[name]?.jsonPrimitive?.intOrNull ?: 0
+
+private fun JsonObject.language(): String? = this["iso_639_1"]?.jsonPrimitive?.contentOrNull
+
+private fun JsonObject.path(): String = this["file_path"]?.jsonPrimitive?.contentOrNull.orEmpty()
+
+/** Largest textless (no-language) image of [kind] ("backdrops" or "posters"), ties broken by votes. */
+private fun largestTextless(images: JsonObject, kind: String): SizedImage? =
+    (images[kind] as? JsonArray).orEmpty()
+        .mapNotNull { it as? JsonObject }
         .filter { image ->
-            val language = image["iso_639_1"]?.jsonPrimitive?.contentOrNull
-            val path = image["file_path"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            (language == null || language == "xx") &&
-                path.matches(Regex("/[A-Za-z0-9_]+\\.[A-Za-z0-9]+")) &&
-                (image["width"]?.jsonPrimitive?.intOrNull ?: 0) > 0 &&
-                (image["height"]?.jsonPrimitive?.intOrNull ?: 0) > 0
+            val language = image.language()
+            (language == null || language == "xx") && image.path().matches(tmdbImagePath) &&
+                image.int("width") > 0 && image.int("height") > 0
         }
-        .maxWithOrNull(compareBy<JsonObject> {
-            it.getValue("width").jsonPrimitive.intOrNull!!.toLong() *
-                it.getValue("height").jsonPrimitive.intOrNull!!
-        }.thenBy { it["vote_count"]?.jsonPrimitive?.intOrNull ?: 0 })
-        ?.get("file_path")?.jsonPrimitive?.contentOrNull
-        ?.let { "https://image.tmdb.org/t/p/original$it" }
+        .maxWithOrNull(compareBy<JsonObject> { it.int("width").toLong() * it.int("height") }
+            .thenBy { it.int("vote_count") })
+        ?.let { SizedImage("https://image.tmdb.org/t/p/original${it.path()}", it.int("width"), it.int("height")) }
+
+internal fun largestTextlessBackdrop(body: String): String? =
+    (Json.parseToJsonElement(body) as? JsonObject)?.let { largestTextless(it, "backdrops") }?.url
+
+/** TMDB's top-rated English PNG logo (SVG logos don't render everywhere). */
+internal fun tmdbEnglishLogo(images: JsonObject): String? =
+    (images["logos"] as? JsonArray).orEmpty()
+        .mapNotNull { it as? JsonObject }
+        .filter { it.language() == "en" && it.path().matches(tmdbImagePath) && it.path().endsWith(".png") }
+        .maxWithOrNull(compareBy<JsonObject> { it["vote_average"]?.jsonPrimitive?.doubleOrNull ?: 0.0 }
+            .thenBy { it.int("vote_count") })
+        ?.let { "https://image.tmdb.org/t/p/original${it.path()}" }
+
+/** Fanart.tv's most-liked English logo; HD logos first, then the older small ones. */
+internal fun fanartEnglishLogoFrom(body: String): String? {
+    val root = Json.parseToJsonElement(body) as? JsonObject ?: return null
+    return listOf("hdtvlogo", "hdmovielogo", "clearlogo", "movielogo").firstNotNullOfOrNull { kind ->
+        (root[kind] as? JsonArray).orEmpty()
+            .mapNotNull { it as? JsonObject }
+            .filter { it["lang"]?.jsonPrimitive?.contentOrNull == "en" }
+            .maxByOrNull { it["likes"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0 }
+            ?.get("url")?.jsonPrimitive?.contentOrNull
+    }
 }
 
 private fun isTmdbArtwork(url: String): Boolean =

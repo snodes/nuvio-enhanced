@@ -27,6 +27,8 @@ data class MetaPreview(
     val ageRating: String? = null,
     val language: String? = null,
     val externalRatings: List<MetaExternalRating> = emptyList(),
+    // Textless portrait key art for tall phone heroes, set by the home hero's artwork lookup.
+    val heroTallArt: String? = null,
 )
 
 fun MetaPreview.stableKey(): String = "$type:$id"

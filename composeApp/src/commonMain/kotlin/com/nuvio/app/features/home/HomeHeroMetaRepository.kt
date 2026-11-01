@@ -13,6 +13,7 @@ import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.mdblist.MdbListMetadataService
 import com.nuvio.app.features.mdblist.MdbListSettings
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
+import com.nuvio.app.features.tmdb.TitleArtwork
 import com.nuvio.app.features.tmdb.TmdbBackdrops
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import kotlinx.coroutines.CancellationException
@@ -39,7 +40,7 @@ internal data class HomeHeroState(
 internal data class HomeHeroMeta(
     val details: MetaDetails? = null,
     val ratings: List<MetaExternalRating> = emptyList(),
-    val backdrop: String? = null,
+    val artwork: TitleArtwork? = null,
 )
 
 internal object HomeHeroMetaRepository {
@@ -74,10 +75,10 @@ internal object HomeHeroMetaRepository {
             }
             val resolved = details.await()
             update(key) { meta -> meta.copy(details = resolved) }
-            val backdrop = permits.withPermit {
-                TmdbBackdrops.resolve(item.id, item.type, item.banner, resolved?.imdbId)
+            val artwork = permits.withPermit {
+                TmdbBackdrops.artwork(item.id, item.type, item.banner, resolved?.imdbId)
             }
-            update(key) { meta -> meta.copy(backdrop = backdrop) }
+            update(key) { meta -> meta.copy(artwork = artwork) }
         }
     }
 
@@ -125,9 +126,10 @@ internal fun MetaPreview.withHeroMeta(meta: HomeHeroMeta): MetaPreview {
         it.enabled && it.titleLanguage == TmdbTitleLanguage.ORIGINAL
     }
     return copy(
-        banner = meta.backdrop ?: banner,
+        banner = meta.artwork?.backdrop ?: banner,
+        heroTallArt = meta.artwork?.tallArt,
         name = details?.name?.takeIf { useOriginalTitle && it.isNotBlank() } ?: name,
-        logo = details?.logo?.takeIf { useOriginalTitle && it.isNotBlank() } ?: logo,
+        logo = details?.logo?.takeIf { useOriginalTitle && it.isNotBlank() } ?: meta.artwork?.logo ?: logo,
         genres = details?.genres?.takeIf { it.isNotEmpty() } ?: genres,
         imdbRating = details?.imdbRating?.takeIf { it.isNotBlank() } ?: imdbRating,
         runtime = details?.runtime?.takeIf { it.isNotBlank() } ?: runtime,

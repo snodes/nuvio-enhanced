@@ -9,3 +9,10 @@ Changed from the consolidated `jacob` phone branch (the details-backdrop-quality
 Validation: 8 picker tests pass (compiled directly with Kotlin; no Android SDK on the PC). Sol high review; its one finding is fixed. Screens compile only in the iOS build.
 
 Art research (no code change): Attack on Titan's pick is the sharpest of TMDB's 26 4K backdrops by a measured-detail check, and the phone hero shows it at about 1.1 source pixels per screen pixel, so its softness is the artwork itself. Fruits Basket tops out at 1920×1080 on TMDB, Fanart.tv and TVDB; Kitsu's covers are 3360×800 strips.
+
+## Tall key art and English logos
+
+- **Phone banner art:** one TMDB request (`append_to_response=images,external_ids`) now returns the textless backdrop, the textless tall key art and English logos. On tall phone heroes the banner uses the key art when it is at least 1500 px wide, which gives more source pixels per screen pixel than a 4K backdrop cropped to a third of its width (about 1.45 vs 1.10; Fruits Basket's 1080p backdrop was 0.55). Wide and tablet heroes keep the backdrop; the details page keeps the backdrop.
+- **English logos:** Fanart.tv's most-liked English logo, else TMDB's best English PNG, else the addon's. AIOMetadata's public server caches one logo per show for all users regardless of language, so its "English Art Only" setting (turned on 2026-11-01) can't fix it alone; AoT came back French.
+- **Fanart.tv key:** new `FANART_API_KEY` in `local.properties`, generated into `TmdbConfig`. Blank skips Fanart.tv (GitHub CI builds don't have it yet, so they use TMDB logos).
+- Rejected: Wallhaven as a 4K source. Its title search returned other shows for Fruits Basket and mostly fan art for AoT.

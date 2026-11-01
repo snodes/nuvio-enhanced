@@ -303,6 +303,8 @@ internal fun HomeHeroSection(
             } else {
                 baseLayout
             }
+            // Phones in portrait: the hero is taller than wide, so tall key art beats a cropped backdrop.
+            val tallHero = !heroUsesWideArtwork(maxWidth, viewportHeight, baseLayout.isTablet)
             val effectiveArtworkSource = when {
                 !isCardStyle -> HomeHeroArtworkSource.BACKDROP
                 heroUsesWideArtwork(maxWidth, viewportHeight, baseLayout.isTablet) ->
@@ -336,13 +338,13 @@ internal fun HomeHeroSection(
             }
             val currentItem = items[currentPage % items.size]
 
-            val activeArtworkUrl = heroArtworkUrl(items[pagerState.targetPage % items.size], effectiveArtworkSource)
+            val activeArtworkUrl = heroArtworkUrl(items[pagerState.targetPage % items.size], effectiveArtworkSource, tallHero)
             LaunchedEffect(onActiveArtworkChange, activeArtworkUrl) {
                 onActiveArtworkChange?.invoke(activeArtworkUrl)
             }
             if (onActiveArtworkChange != null && rememberDynamicArtworkBackgroundEnabled()) {
-                val heroArtworkUrls = remember(items, effectiveArtworkSource) {
-                    items.mapNotNull { item -> heroArtworkUrl(item, effectiveArtworkSource) }
+                val heroArtworkUrls = remember(items, effectiveArtworkSource, tallHero) {
+                    items.mapNotNull { item -> heroArtworkUrl(item, effectiveArtworkSource, tallHero) }
                 }
                 PrefetchArtworkDominantColors(heroArtworkUrls)
             }
@@ -356,7 +358,7 @@ internal fun HomeHeroSection(
                     .distinct()
                 val imageLoader = SingletonImageLoader.get(platformContext)
                 neighbours.forEach { item ->
-                    listOfNotNull(heroArtworkUrl(item, effectiveArtworkSource), item.logo?.takeIf { it.isNotBlank() })
+                    listOfNotNull(heroArtworkUrl(item, effectiveArtworkSource, tallHero), item.logo?.takeIf { it.isNotBlank() })
                         .forEach { url ->
                             imageLoader.enqueue(ImageRequest.Builder(platformContext).data(url).size(Size.ORIGINAL).build())
                         }
@@ -451,7 +453,7 @@ internal fun HomeHeroSection(
                     ) {
                         visiblePages.forEach { layer ->
                             val item = items[layer.itemIndex]
-                            val artworkUrl = heroArtworkUrl(item, effectiveArtworkSource)
+                            val artworkUrl = heroArtworkUrl(item, effectiveArtworkSource, tallHero)
                             val isCurrentLayer = layer.page == currentPage
                             key(effectiveArtworkSource, item.type, item.id, artworkUrl) {
                                 AsyncImage(
@@ -716,8 +718,10 @@ private data class HeroPageLayer(
     val itemIndex: Int,
 )
 
-private fun heroArtworkUrl(item: MetaPreview, source: HomeHeroArtworkSource): String? =
-    originalHeroArtworkUrl(when (source) {
+// On tall heroes, textless key art (when the lookup found a sharp one) comes before both the titled
+// poster and the backdrop, which would be cropped to about a third of its width.
+private fun heroArtworkUrl(item: MetaPreview, source: HomeHeroArtworkSource, tallHero: Boolean): String? =
+    originalHeroArtworkUrl(item.heroTallArt?.takeIf { tallHero } ?: when (source) {
         HomeHeroArtworkSource.POSTER -> item.poster ?: item.banner
         HomeHeroArtworkSource.BACKDROP -> item.banner ?: item.poster
     })
