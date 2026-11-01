@@ -1182,7 +1182,10 @@ fun MetaDetailsScreen(
                         slowLookup.cancel()
                         backdropPending = false
                     }
-                    val backdropUrl = (artwork?.backdrop ?: originalBackdrop).takeUnless { backdropPending }
+                    // The phone hero is portrait (1.33x its width), so it takes the tall key art like the
+                    // home hero does; the picker only offers that when the title has no 4K backdrop.
+                    val backdropUrl = (artwork?.tallArt?.takeUnless { isTablet } ?: artwork?.backdrop ?: originalBackdrop)
+                        .takeUnless { backdropPending }
                     // Visible heroes and background effects must use the same selected artwork, and the
                     // English logo (the addon's can be any language) unless titles are set to their original language. Clearing the poster too keeps the
                     // heroes from showing it as a stand-in while pending.

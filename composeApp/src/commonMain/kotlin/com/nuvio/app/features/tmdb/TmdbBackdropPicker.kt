@@ -15,8 +15,8 @@ import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Artwork picked for one title; any field is null when no source has it.
- * [tallArt] is textless portrait key art for tall phone heroes, only when it is at least as sharp there
- * as a 4K backdrop. [logo] is TMDB's best English logo (the addon's can be any language).
+ * [tallArt] is textless portrait key art for tall phone heroes, only when the title has no 4K backdrop
+ * (textless TMDB posters are often fan art, so a 4K backdrop wins whenever one exists). [logo] is TMDB's best English logo (the addon's can be any language).
  */
 internal data class TitleArtwork(
     val backdrop: String? = null,
@@ -114,10 +114,12 @@ internal class TmdbBackdropPicker(
             mapOf("append_to_response" to "images", "include_image_language" to "en,null,xx"),
         ))) as JsonObject
         val images = details["images"] as? JsonObject ?: JsonObject(emptyMap())
+        val backdrop = largestTextless(images, "backdrops")
         val tallArt = largestTextless(images, "posters")
             ?.takeIf { it.width >= TALL_ART_MIN_WIDTH && it.height > it.width }
+            ?.takeIf { (backdrop?.width ?: 0) < UHD_BACKDROP_WIDTH }
         return TitleArtwork(
-            backdrop = largestTextless(images, "backdrops")?.url,
+            backdrop = backdrop?.url,
             tallArt = tallArt?.url,
             logo = tmdbEnglishLogo(images),
         )
@@ -133,6 +135,10 @@ internal class TmdbBackdropPicker(
 // A 2:3 poster this wide shows at least as many source pixels per screen pixel on a tall phone hero
 // as a 3840x2160 backdrop does (the backdrop is cropped to about a third of its width there).
 internal const val TALL_ART_MIN_WIDTH = 1500
+
+// Titles with a backdrop this wide keep it on tall heroes too. Tall art only beat a 4K backdrop on paper:
+// on the phone, HxH got a pencil fan sketch and MHA got Season 1 key art that didn't match its details page.
+internal const val UHD_BACKDROP_WIDTH = 3840
 
 private data class SizedImage(val url: String, val width: Int, val height: Int)
 

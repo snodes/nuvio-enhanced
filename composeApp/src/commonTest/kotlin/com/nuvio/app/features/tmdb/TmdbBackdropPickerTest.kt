@@ -34,20 +34,29 @@ class TmdbBackdropPickerTest {
         assertNull(largestTextlessBackdrop("""{"backdrops":[{"file_path":"/bad.jpg","width":0,"height":1080}]}"""))
     }
 
+    // Only 1080p backdrops: the Fruits Basket case, where key art is sharper on a tall hero.
+    private val softDetails = details.replace("\"width\":3840,\"height\":2160", "\"width\":1920,\"height\":1080")
+
     @Test
-    fun oneLookupPicksBackdropTallArtAndEnglishPngLogo() = runTest {
+    fun oneLookupPicksBackdropAndEnglishPngLogoButNoTallArtWhenBackdropIs4k() = runTest {
         val requests = mutableListOf<String>()
         val picker = TmdbBackdropPicker({ "key" }) { url -> requests += url; details }
         val artwork = picker.artwork("tmdb:1063", "series", "before")
         assertEquals("https://image.tmdb.org/t/p/original/winner.jpg", artwork.backdrop)
-        assertEquals("https://image.tmdb.org/t/p/original/key_art.jpg", artwork.tallArt)
+        assertNull(artwork.tallArt)
         assertEquals("https://image.tmdb.org/t/p/original/english.png", artwork.logo)
         assertEquals(listOf("https://api.themoviedb.org/3/tv/1063?api_key=key&append_to_response=images&include_image_language=en,null,xx"), requests)
     }
 
     @Test
+    fun tallArtIsUsedWhenBackdropIsUnder4k() = runTest {
+        val picker = TmdbBackdropPicker({ "key" }) { softDetails }
+        assertEquals("https://image.tmdb.org/t/p/original/key_art.jpg", picker.artwork("tmdb:1063", "series", "x").tallArt)
+    }
+
+    @Test
     fun smallKeyArtIsNotUsedAsTallArt() = runTest {
-        val onlySmall = details.replace("\"width\":2000,\"height\":3000", "\"width\":1000,\"height\":1500")
+        val onlySmall = softDetails.replace("\"width\":2000,\"height\":3000", "\"width\":1000,\"height\":1500")
         val picker = TmdbBackdropPicker({ "key" }) { onlySmall }
         assertNull(picker.artwork("tmdb:1063", "series", "x").tallArt)
     }

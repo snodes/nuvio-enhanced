@@ -718,7 +718,7 @@ private data class HeroPageLayer(
     val itemIndex: Int,
 )
 
-// On tall heroes, textless key art (when the lookup found a sharp one) comes before both the titled
+// On tall heroes, textless key art (offered only when the title has no 4K backdrop) comes before both the titled
 // poster and the backdrop, which would be cropped to about a third of its width.
 private fun heroArtworkUrl(item: MetaPreview, source: HomeHeroArtworkSource, tallHero: Boolean): String? =
     originalHeroArtworkUrl(item.heroTallArt?.takeIf { tallHero } ?: when (source) {
