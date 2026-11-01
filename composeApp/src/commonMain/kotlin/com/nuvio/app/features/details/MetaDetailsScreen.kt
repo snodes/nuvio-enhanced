@@ -1168,6 +1168,8 @@ fun MetaDetailsScreen(
                         }
                     }
                     val backdropUrl = selectedBackdrop
+                    // Visible heroes and background effects must use the same selected artwork.
+                    val artworkMeta = meta.copy(background = backdropUrl)
                     val backgroundMode = metaScreenSettingsUiState.backgroundMode
                     val dominantColorEnabled = backgroundMode == MetaScreenBackgroundMode.DominantColor &&
                         !backdropUrl.isNullOrBlank()
@@ -1230,7 +1232,7 @@ fun MetaDetailsScreen(
                                             .then(if (cinematicGlassEnabled) Modifier.nuvioBackdropSource(cinematicArtworkBackdrop) else Modifier),
                                     ) {
                                         TabletDetailBackdrop(
-                                            meta = meta,
+                                            meta = artworkMeta,
                                             cinematic = backgroundMode == MetaScreenBackgroundMode.Cinematic,
                                             scrollOffsetPx = detailScrollOffsetPx,
                                             heroHeightPx = { heroHeightPx.intValue },
@@ -1331,7 +1333,7 @@ fun MetaDetailsScreen(
                                             )
                                         } else {
                                             DetailHero(
-                                                meta = meta,
+                                                meta = artworkMeta,
                                                 isTablet = isTablet,
                                                 contentMaxWidth = contentMaxWidth,
                                                 scrollOffset = heroScrollOffset,
