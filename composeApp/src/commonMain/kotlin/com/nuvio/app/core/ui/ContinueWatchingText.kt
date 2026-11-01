@@ -15,7 +15,7 @@ fun localizedContinueWatchingSubtitle(item: ContinueWatchingItem, compact: Boole
 
     val base = when {
         seasonNumber != null && episodeNumber != null ->
-            stringResource(Res.string.compose_player_episode_code_full, seasonNumber, episodeNumber)
+            episodeCodeLabel(seasonNumber, episodeNumber, item.parentMetaId)
         item.parentMetaType.equals(CloudLibraryContentType, ignoreCase = true) ->
             stringResource(Res.string.library_source_cloud)
         else ->

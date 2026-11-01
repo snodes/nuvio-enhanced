@@ -1,5 +1,7 @@
 package com.nuvio.app.features.watchprogress
 
+import com.nuvio.app.features.anime.toKitsuAnime
+
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
@@ -547,7 +549,7 @@ object WatchProgressRepository {
             return true
         }
 
-        return nuvioPullMutex.withLock {
+        val refreshed = nuvioPullMutex.withLock {
             try {
                 if (force) {
                     pullNuvioSnapshotFromServer(
@@ -568,6 +570,8 @@ object WatchProgressRepository {
                 false
             }
         }
+        if (refreshed) foldImdbAnimeProgressIntoKitsu(profileId)
+        return refreshed
     }
 
     private suspend fun pullNuvioSnapshotFromServer(
@@ -1312,6 +1316,8 @@ object WatchProgressRepository {
             lastSourceUrl = session.lastSourceUrl,
             isCompleted = isCompleted,
         ).normalizedCompletion()
+            // Nuvio's own history keeps anime under Kitsu ids, whichever catalog the show was opened from.
+            .let { entry -> if (progressProvider == null) entry.toKitsuAnime() else entry }
 
         if (targetProfileId != currentProfileId || ProfileRepository.activeProfileId != targetProfileId) {
             val resolvedEntry = resolveStoredProfileProgressIdentity(
@@ -1416,6 +1422,36 @@ object WatchProgressRepository {
             WatchProgressCodec.decodePayload(payload).entries
         }
         return storedEntries.resolveIdentityForUpsert(entry)
+    }
+
+    /**
+     * Moves Nuvio progress saved under an IMDb anime id (before the Kitsu switch, or opened from a
+     * TMDB/IMDb row) to its Kitsu entry, so the show stops showing twice in Continue Watching.
+     * Nuvio Sync only; runs after every Nuvio refresh and does nothing once history is clean.
+     */
+    private fun foldImdbAnimeProgressIntoKitsu(profileId: Int) {
+        if (activeSource.providerId != null || profileId != currentProfileId) return
+        val moves = currentEntries().mapNotNull { entry ->
+            entry.toKitsuAnime().takeIf { it.parentMetaId != entry.parentMetaId }
+                ?.withResolvedProgressKey()
+                ?.let { entry to it }
+        }
+        if (moves.isEmpty()) return
+        val kept = moves.mapNotNull { (old, kitsu) ->
+            removeLocalEntry(old.resolvedProgressKey())
+            val existing = localEntry(kitsu.resolvedProgressKey())
+            if (existing == null || existing.lastUpdatedEpochMs < kitsu.lastUpdatedEpochMs) {
+                upsertLocalEntry(kitsu)
+                kitsu
+            } else {
+                null
+            }
+        }
+        log.i { "Folded ${moves.size} IMDb anime progress entries into Kitsu" }
+        publish()
+        persist()
+        pushDeleteToServer(moves.map { it.first })
+        kept.forEach { pushScrobbleToServer(it, profileId) }
     }
 
     private fun pushScrobbleToServer(entry: WatchProgressEntry, profileId: Int) {

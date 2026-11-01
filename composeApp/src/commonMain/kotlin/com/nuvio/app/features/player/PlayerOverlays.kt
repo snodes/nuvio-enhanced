@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.episodeCodeLabel
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -248,7 +250,7 @@ internal fun PauseMetadataOverlay(
             }
 
             val episodeInfo = if (isEpisode && seasonNumber != null && episodeNumber != null) {
-                stringResource(Res.string.compose_player_episode_code_full, seasonNumber, episodeNumber)
+                episodeCodeLabel(seasonNumber, episodeNumber)
             } else {
                 providerName
             }
