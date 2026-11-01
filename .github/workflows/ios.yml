@@ -10,7 +10,7 @@ name: iOS
 
 on:
   push:
-    branches: [text-subs-first]
+    branches: [jacob]
   workflow_dispatch:
 
 permissions:
