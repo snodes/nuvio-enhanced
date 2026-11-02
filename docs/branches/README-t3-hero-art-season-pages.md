@@ -14,3 +14,10 @@ Changed from `t3/fix-poster-loading-4k-art`. Handoff: `docs/handoffs/2026-11-01-
 - Changed on 2026-11-01 through AIOMetadata's API: Anime Provider MAL → TVDB, Anime Stream Compatibility ID Kitsu → IMDb, "Use IMDb ID for Catalog/Search" on. Before, every anime ID (even TMDB/IMDb) opened Kitsu's per-season entry.
 - Result: My Hero Academia is one page with seasons 1–8; Bleach is one page with seasons 1–17, Thousand-Year Blood War as season 17. Episode IDs are `tt…:season:episode`.
 - TVDB, not TMDB, because Jacob's AIOStreams numbers by TVDB/IMDb seasons (TMDB calls TYBW season 2). Streams found for Bleach S13E1, S17E14 and MHA S8E1.
+
+## Stop folding anime history into Kitsu ids
+
+- **Problem:** the Oct 31 patch saved anime progress and watched marks under per-season Kitsu ids and folded IMDb records into Kitsu after every Nuvio Sync pull. With one id per show from AIOMetadata, a show ended up under both id kinds (One Piece had three Continue Watching entries).
+- **Fix:** removed the save-time conversion, both folds, the Kitsu aliases in watched lookups/unmarks, `AnimeKitsuIds` and its table and test (and its CI step). "E4" labels for leftover Kitsu entries stay. Desktop twin: nuvio-desktop `t3/one-anime-id`.
+- Converted Jacob's Nuvio Sync data on 2026-11-01: 10 Continue Watching rows and 1,238 watched marks moved to `tt` ids (TVDB seasons); the library's Kitsu copy of Your Name was dropped (the IMDb copy existed). Two marks with no TVDB match (One Piece 628, one other) stay Kitsu.
+- Nuvio Sync keeps delete markers and only moves a row's time forward, so four IMDb keys the old fold had deleted refuse their old timestamps. Those four rows were left out: One Piece S23E21 (S23E23 is newer), FLCL ep 1 at 36 s, DBS: Beerus ep 1 at 5 min, Call of the Night S2E3 at 91%.
