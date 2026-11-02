@@ -10,4 +10,5 @@ fresh thread: decisions and reasons, completed and verified work, remaining
 priorities, and workspace. Replace stale information; keep unknowns explicit.
 Preserve the other repo's section and concurrent updates.
 
-Work in your own git worktree. Main local integration branch: `jacob`.
+Create your own git worktree from the local `jacob` branch, not the upstream
+default. Main local integration branch: `jacob`.
