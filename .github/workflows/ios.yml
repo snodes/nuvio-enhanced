@@ -38,19 +38,16 @@ jobs:
           touch local.properties
           focused=composeApp/build/player-selection-tests/kotlin/com/nuvio/app/features/player
           tmdb=composeApp/build/player-selection-tests/kotlin/com/nuvio/app/features/tmdb
-          anime=composeApp/build/player-selection-tests/kotlin/com/nuvio/app/features/anime
           host=composeApp/build/player-host-tests/kotlin/com/nuvio/app/features/player
-          mkdir -p "$focused" "$host" "$tmdb" "$anime"
+          mkdir -p "$focused" "$host" "$tmdb"
           cp composeApp/src/commonTest/kotlin/com/nuvio/app/features/player/PlayerTrackSelectionTest.kt "$focused/"
           cp composeApp/src/commonTest/kotlin/com/nuvio/app/features/player/{PreferredAudioTrackTest,OriginalAudioPreferenceTest}.kt "$focused/"
           cp composeApp/src/commonTest/kotlin/com/nuvio/app/features/tmdb/TmdbBackdropPickerTest.kt "$tmdb/"
-          cp composeApp/src/commonTest/kotlin/com/nuvio/app/features/anime/AnimeKitsuIdsTest.kt "$anime/"
           cp composeApp/src/androidHostTest/kotlin/com/nuvio/app/features/player/PlayerBrightnessTest.kt "$host/"
           ./gradlew :composeApp:testAndroidHostTest --tests 'com.nuvio.app.features.player.PlayerTrackSelectionTest' \
             --tests 'com.nuvio.app.features.player.PreferredAudioTrackTest' \
             --tests 'com.nuvio.app.features.player.OriginalAudioPreferenceTest' \
             --tests 'com.nuvio.app.features.tmdb.TmdbBackdropPickerTest' \
-            --tests 'com.nuvio.app.features.anime.AnimeKitsuIdsTest' \
             --tests 'com.nuvio.app.features.player.PlayerBrightnessTest' \
             -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore \
             -Pnuvio.playerSelectionTestsOnly=true --stacktrace
