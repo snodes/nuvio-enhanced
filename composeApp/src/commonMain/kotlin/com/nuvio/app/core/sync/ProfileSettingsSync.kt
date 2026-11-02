@@ -106,7 +106,39 @@ object ProfileSettingsSync {
         ProviderCredentialSync.onProfileChanged()
     }
 
+    /**
+     * Pulls this device's settings blob, then merges in Continue Watching removals made on the other
+     * kind of device. Phone and desktop keep separate blobs, so without this a card removed on one
+     * device kept showing on the other.
+     */
     suspend fun pull(profileId: Int): Boolean {
+        val applied = pullOwnBlob(profileId)
+        mergeOtherPlatformDismissals(profileId)
+        return applied
+    }
+
+    private suspend fun mergeOtherPlatformDismissals(profileId: Int) {
+        // This app always syncs as the phone; Nuvio Desktop's blob holds the desktop's removals.
+        val otherPlatform = DESKTOP_SYNC_PLATFORM
+        try {
+            val params = buildJsonObject {
+                put("p_profile_id", profileId)
+                put("p_platform", otherPlatform)
+            }
+            val remoteJson = SupabaseProvider.client.postgrest.rpc("sync_pull_profile_settings_blob", params)
+                .decodeList<SettingsBlobResponse>().firstOrNull()?.settingsJson ?: return
+            if (ProfileRepository.activeProfileId != profileId) return
+            val blob = json.decodeFromJsonElement(MobileProfileSettingsBlob.serializer(), remoteJson)
+            ContinueWatchingPreferencesRepository.mergeDismissedNextUpKeys(
+                ContinueWatchingPreferencesRepository.dismissedNextUpKeysIn(blob.features.continueWatchingSettingsPayload),
+            )
+        } catch (error: Exception) {
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            log.e(error) { "mergeOtherPlatformDismissals(profileId=$profileId) — FAILED" }
+        }
+    }
+
+    private suspend fun pullOwnBlob(profileId: Int): Boolean {
         ensureRepositoriesLoaded()
         return syncMutex.withLock {
             if (ProfileRepository.activeProfileId != profileId) {

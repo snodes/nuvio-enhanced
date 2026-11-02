@@ -152,6 +152,21 @@ object ContinueWatchingPreferencesRepository {
         persist()
     }
 
+    /** Adds removals made on another device. Never drops local ones. */
+    fun mergeDismissedNextUpKeys(keys: Set<String>) {
+        ensureLoaded()
+        val current = _uiState.value.dismissedNextUpKeys
+        val merged = current + keys.map(String::trim).filter(String::isNotBlank)
+        if (merged == current) return
+        _uiState.value = _uiState.value.copy(dismissedNextUpKeys = merged)
+        persist()
+    }
+
+    /** The removal keys in a stored or synced preferences payload; empty if it can't be read. */
+    internal fun dismissedNextUpKeysIn(payload: String): Set<String> =
+        runCatching { json.decodeFromString<StoredContinueWatchingPreferences>(payload).dismissedNextUpKeys }
+            .getOrDefault(emptySet())
+
     fun setShowResumePromptOnLaunch(enabled: Boolean) {
         ensureLoaded()
         _uiState.value = _uiState.value.copy(showResumePromptOnLaunch = enabled)
