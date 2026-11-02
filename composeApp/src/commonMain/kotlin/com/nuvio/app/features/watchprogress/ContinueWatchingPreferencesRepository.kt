@@ -2,6 +2,7 @@ package com.nuvio.app.features.watchprogress
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -155,10 +156,10 @@ object ContinueWatchingPreferencesRepository {
     /** Adds removals made on another device. Never drops local ones. */
     fun mergeDismissedNextUpKeys(keys: Set<String>) {
         ensureLoaded()
-        val current = _uiState.value.dismissedNextUpKeys
-        val merged = current + keys.map(String::trim).filter(String::isNotBlank)
-        if (merged == current) return
-        _uiState.value = _uiState.value.copy(dismissedNextUpKeys = merged)
+        val incoming = keys.map(String::trim).filter(String::isNotBlank)
+        if (_uiState.value.dismissedNextUpKeys.containsAll(incoming)) return
+        // Atomic: this runs from sync while the UI may be adding a removal at the same moment.
+        _uiState.update { it.copy(dismissedNextUpKeys = it.dismissedNextUpKeys + incoming) }
         persist()
     }
 
